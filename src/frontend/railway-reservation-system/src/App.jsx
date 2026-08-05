@@ -1,112 +1,54 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./features/auth/AuthContext";
-import { TrainProvider } from "./context/TrainContext";
+import React, { useEffect, useState } from 'react';
 
-import AuthLayout from "./layouts/AuthLayout";
-import MainLayout from "./layouts/MainLayout";
+export default function App() {
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-import LoginPage from "./pages/LoginPage";
-import SearchTrainPage from "./pages/SearchTrainPage";
-import SearchResultsPage from "./pages/SearchResultsPage";
-import BookingPage from "./pages/BookingPage";
-import QueryPage from "./pages/QueryPage";
-import CancellationPage from "./pages/CancellationPage";
-import ChangePasswordPage from "./pages/ChangePasswordPage";
-import AdminDashboard from "./features/admin/AdminDashboard";
-import { RequireAuth } from "./features/auth/RequireAuth";
+  useEffect(() => {
+    fetch('http://localhost:5000/api/schedules')
+      .then((res) => {
+        if (!res.ok) throw new Error('Lỗi kết nối API Server');
+        return res.json();
+      })
+      .then((data) => {
+        setSchedules(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
-function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <TrainProvider>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                <AuthLayout>
-                  <LoginPage />
-                </AuthLayout>
-              }
-            />
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h2>🚆 Hệ Thống Đặt Vé Tàu Hỏa</h2>
+      <h3>Danh Sách Chuyến Tàu</h3>
 
-            <Route
-              path="/search"
-              element={
-                <RequireAuth>
-                  <MainLayout>
-                    <SearchTrainPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/results"
-              element={
-                <RequireAuth>
-                  <MainLayout>
-                    <SearchResultsPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/booking"
-              element={
-                <RequireAuth>
-                  <MainLayout>
-                    <BookingPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/query"
-              element={
-                <RequireAuth>
-                  <MainLayout>
-                    <QueryPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/cancel"
-              element={
-                <RequireAuth>
-                  <MainLayout>
-                    <CancellationPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/change-password"
-              element={
-                <RequireAuth>
-                  <MainLayout>
-                    <ChangePasswordPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
+      {loading && <p>Đang tải dữ liệu...</p>}
+      {error && <p style={{ color: 'red' }}>Lỗi: {error}</p>}
 
-            <Route
-              path="/admin/*"
-              element={
-                <RequireAuth allowedRoles={["ADMIN"]}>
-                  <AdminDashboard />
-                </RequireAuth>
-              }
-            />
-
-            <Route path="/" element={<Navigate to="/search" />} />
-          </Routes>
-        </TrainProvider>
-      </AuthProvider>
-    </BrowserRouter>
+      {!loading && !error && (
+        <div style={{ display: 'grid', gap: '15px', marginTop: '20px' }}>
+          {schedules.length === 0 ? (
+            <p>Không có chuyến tàu nào.</p>
+          ) : (
+            schedules.map((item) => (
+              <div 
+                key={item.schedule_id} 
+                style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}
+              >
+                <h4>{item.train_name}</h4>
+                <p><b>Hành trình:</b> {item.departure_station} ➔ {item.arrival_station}</p>
+                <p><b>Giờ khởi hành:</b> {new Date(item.departure_time).toLocaleString('vi-VN')}</p>
+                <p><b>Giá vé:</b> <span style={{ color: 'green', fontWeight: 'bold' }}>{Number(item.price).toLocaleString('vi-VN')} VNĐ</span></p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }
-
-export default App;
