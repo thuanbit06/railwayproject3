@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { BookingProvider } from "./context/BookingContext";
+import { UserProvider } from "./context/UserContext"; // 👈 1. Import UserProvider
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -37,49 +38,53 @@ import TicketsManagement from "./pages/admin/TicketsManagement";
 
 function App() {
   return (
-    <AuthProvider>
-      <BookingProvider>
-        <Router>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Introduction />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+    // 👇 2. Bọc UserProvider ở ngoài cùng (hoặc trong AuthProvider đều ok)
+    <UserProvider>
+      <AuthProvider>
+        <BookingProvider>
+          <Router>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Introduction />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            {/* User Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<UserDashboard />} />
-              <Route path="/search" element={<SearchTrain />} />
-              <Route path="/trains" element={<TrainResults />} />
-              <Route path="/trains/:id" element={<TrainDetails />} />
-              {/* 👇 ĐÃ SỬA THÀNH /book-ticket */}
-              <Route path="/book-ticket" element={<BookTicket />} />
-              <Route path="/payment" element={<Payment />} />
-              <Route path="/success" element={<BookingSuccess />} />
-              <Route path="/my-tickets" element={<MyTickets />} />
-              <Route path="/ticket/:pnr" element={<TicketDetails />} />
-              <Route path="/cancel/:pnr" element={<CancelTicket />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-
-            {/* Admin Protected Routes */}
-            <Route element={<ProtectedRoute adminOnly />}>
-              <Route path="/admin" element={<AdminDashboard />}>
-                <Route index element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard" element={<Analytics />} />
-                <Route path="trains" element={<TrainManagement />} />
-                <Route path="stations" element={<StationManagement />} />
-                <Route
-                  path="reservations"
-                  element={<ReservationsManagement />}
-                />
-                <Route path="tickets" element={<TicketsManagement />} />
+              {/* User Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<UserDashboard />} />
+                <Route path="/search" element={<SearchTrain />} />
+                <Route path="/trains" element={<TrainResults />} />
+                <Route path="/trains/:id" element={<TrainDetails />} />
+                <Route path="/book-ticket" element={<BookTicket />} />
+                <Route path="/payment" element={<Payment />} />
+                <Route path="/success" element={<BookingSuccess />} />
+                <Route path="/my-tickets" element={<MyTickets />} />
+                <Route path="/ticket/:pnr" element={<TicketDetails />} />
+                <Route path="/cancel/:pnr" element={<CancelTicket />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
-            </Route>
-          </Routes>
-        </Router>
-      </BookingProvider>
-    </AuthProvider>
+
+              {/* Admin Protected Routes */}
+              <Route element={<ProtectedRoute adminOnly />}>
+                <Route path="/admin" element={<AdminDashboard />}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<Analytics />} />
+                  <Route path="trains" element={<TrainManagement />} />
+                  <Route path="stations" element={<StationManagement />} />
+                  <Route
+                    path="reservations"
+                    element={<ReservationsManagement />}
+                  />
+                  <Route path="tickets" element={<TicketsManagement />} />
+                  <Route path="analytics" element={<Analytics />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+              </Route>
+            </Routes>
+          </Router>
+        </BookingProvider>
+      </AuthProvider>
+    </UserProvider> // 👈 3. Đóng UserProvider
   );
 }
 

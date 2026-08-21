@@ -111,18 +111,24 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5175"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
 });
 
+var app = builder.Build();
+
+
 // =========================================================
 // BUILD APP
 // =========================================================
 
-var app = builder.Build();
+
 
 // =========================================================
 // MIDDLEWARE
@@ -141,5 +147,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
+
+    await AdminSeeder.SeedAdminAsync(
+        db,
+        app.Configuration);
+}
 
 app.Run();

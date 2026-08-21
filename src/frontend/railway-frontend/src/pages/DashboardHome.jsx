@@ -24,112 +24,53 @@ import {
   Pie,
   Cell,
 } from "recharts";
-// import { getDashboardStats } from "../../services/statsService"; // Bật khi có API
+import { getDashboardStats } from "../../services/statsService"; // 👈 1. Import service
 
-// Dữ liệu giả lập (Mock Data) - Sẽ được thay thế bằng API
-const mockStats = [
-  {
-    label: "Total Revenue",
-    value: "$352,000",
-    change: "+12.5%",
-    trend: "up",
-    icon: TrendingUp,
-    bg: "bg-green-50",
-    color: "text-green-600",
-  },
-  {
-    label: "Tickets Sold",
-    value: "9,760",
-    change: "+8.2%",
-    trend: "up",
-    icon: Ticket,
-    bg: "bg-blue-50",
-    color: "text-blue-600",
-  },
-  {
-    label: "Active Trains",
-    value: "142",
-    change: "3 cancelled",
-    trend: "down",
-    icon: Train,
-    bg: "bg-orange-50",
-    color: "text-orange-600",
-  },
-  {
-    label: "Online Users",
-    value: "2,148",
-    change: "+156",
-    trend: "up",
-    icon: Users,
-    bg: "bg-purple-50",
-    color: "text-purple-600",
-  },
-];
-
-const mockRevenue = [
-  { d: "Mon", r: 8200 },
-  { d: "Tue", r: 9500 },
-  { d: "Wed", r: 11000 },
-  { d: "Thu", r: 9800 },
-  { d: "Fri", r: 12500 },
-  { d: "Sat", r: 15200 },
-  { d: "Sun", r: 11200 },
-];
-
-const mockDistribution = [
-  { name: "Confirmed", value: 68, color: "#22c55e" },
-  { name: "Waiting", value: 18, color: "#f97316" },
-  { name: "Cancelled", value: 14, color: "#ef4444" },
-];
-
-const mockActivities = [
-  {
-    id: 1,
-    icon: CheckCircle,
-    color: "text-green-600 bg-green-50",
-    title: "Booking #48291054 confirmed",
-    detail: "Jane Doe • Express 202",
-    time: "5 min ago",
-  },
-  {
-    id: 2,
-    icon: AlertTriangle,
-    color: "text-orange-600 bg-orange-50",
-    title: "Train #12002 delayed 15 mins",
-    detail: "Bhopal Shatabdi",
-    time: "12 min ago",
-  },
-  {
-    id: 3,
-    icon: Ticket,
-    color: "text-blue-600 bg-blue-50",
-    title: "New reservation created",
-    detail: "Michael Smith",
-    time: "28 min ago",
-  },
-  {
-    id: 4,
-    icon: XCircle,
-    color: "text-red-600 bg-red-50",
-    title: "Booking cancelled",
-    detail: "Refund $85.50",
-    time: "1 hour ago",
-  },
-];
+// Icon mapping (để map string từ API thành Component)
+const iconMap = {
+  TrendingUp,
+  Ticket,
+  Train,
+  Users,
+};
 
 const DashboardHome = () => {
   const nav = useNavigate();
   const [loading, setLoading] = useState(true);
+  // 👇 2. Tạo state để lưu dữ liệu từ API
+  const [stats, setStats] = useState([]);
+  const [revenue, setRevenue] = useState([]);
+  const [distribution, setDistribution] = useState([]);
+  const [activities, setActivities] = useState([]);
 
-  // Giả lập việc gọi API khi component mount
+  // 👇 3. Gọi API khi component mount
   useEffect(() => {
-    // Trong thực tế: getDashboardStats().then(data => setStats(data))
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchData = async () => {
+      try {
+        const data = await getDashboardStats();
+        // Giả sử API trả về đúng cấu trúc này
+        setStats(data.stats || []);
+        setRevenue(data.revenue || []);
+        setDistribution(data.distribution || []);
+        setActivities(data.activities || []);
+      } catch (error) {
+        console.error("Error loading dashboard:", error);
+        // Có thể chuyển hướng về login nếu lỗi 401
+        if (error.response?.status === 401) {
+          nav("/login");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [nav]);
 
   if (loading) {
-    return <div className="p-6">Loading Dashboard...</div>;
+    return (
+      <div className="p-6 text-center text-gray-500">Loading Dashboard...</div>
+    );
   }
 
   return (
@@ -151,23 +92,30 @@ const DashboardHome = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {mockStats.map((s, i) => (
-          <div
-            key={i}
-            className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className={`p-3 rounded-xl ${s.bg}`}>
-              <s.icon size={20} className={s.color} />
+        {stats.map((s, i) => {
+          const IconComponent = iconMap[s.icon]; // 👈 Map icon từ string sang Component
+          return (
+            <div
+              key={i}
+              className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+              <div className={`p-3 rounded-xl ${s.bg}`}>
+                {IconComponent && (
+                  <IconComponent size={20} className={s.color} />
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">{s.label}</p>
+                <p className="text-xl font-bold">{s.value}</p>
+                <p
+                  className={`text-[10px] font-bold ${
+                    s.trend === "up" ? "text-green-600" : "text-red-500"
+                  }`}>
+                  {s.change}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-500">{s.label}</p>
-              <p className="text-xl font-bold">{s.value}</p>
-              <p
-                className={`text-[10px] font-bold ${s.trend === "up" ? "text-green-600" : "text-red-500"}`}>
-                {s.change}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Charts Grid */}
@@ -177,7 +125,9 @@ const DashboardHome = () => {
           <h3 className="font-bold text-gray-800 mb-4">Revenue This Week</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockRevenue}>
+              <AreaChart data={revenue}>
+                {" "}
+                {/* 👈 Dùng dữ liệu thật */}
                 <defs>
                   <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
@@ -207,11 +157,11 @@ const DashboardHome = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={mockDistribution}
+                  data={distribution} // 👈 Dùng dữ liệu thật
                   innerRadius={48}
                   outerRadius={65}
                   dataKey="value">
-                  {mockDistribution.map((d, i) => (
+                  {distribution.map((d, i) => (
                     <Cell key={i} fill={d.color} />
                   ))}
                 </Pie>
@@ -223,7 +173,7 @@ const DashboardHome = () => {
             </div>
           </div>
           <div className="mt-6 space-y-3">
-            {mockDistribution.map((d, i) => (
+            {distribution.map((d, i) => (
               <div key={i} className="flex justify-between text-sm">
                 <span className="flex items-center gap-2">
                   <span
@@ -243,20 +193,24 @@ const DashboardHome = () => {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <h3 className="font-bold text-gray-800 mb-4">Recent Activities</h3>
         <div className="space-y-3">
-          {mockActivities.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50">
-              <div className={`p-2 rounded-lg ${a.color}`}>
-                <a.icon size={14} />
+          {activities.map((a) => {
+            // 👈 Dùng dữ liệu thật
+            const ActivityIcon = iconMap[a.icon];
+            return (
+              <div
+                key={a.id}
+                className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50">
+                <div className={`p-2 rounded-lg ${a.color}`}>
+                  {ActivityIcon && <ActivityIcon size={14} />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">{a.title}</p>
+                  <p className="text-xs text-gray-500">{a.detail}</p>
+                </div>
+                <span className="text-[10px] text-gray-400">{a.time}</span>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{a.title}</p>
-                <p className="text-xs text-gray-500">{a.detail}</p>
-              </div>
-              <span className="text-[10px] text-gray-400">{a.time}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
