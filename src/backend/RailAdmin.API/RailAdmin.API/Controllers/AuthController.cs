@@ -1,13 +1,14 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RailAdmin.API.Data;
+using RailAdmin.API.Dtos;
 using RailAdmin.API.DTOs;
 using RailAdmin.API.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace RailAdmin.API.Controllers;
 
@@ -140,6 +141,21 @@ public class AuthController : ControllerBase
         var user = await _db.Users
             .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
 
+        Console.WriteLine("=================================");
+        Console.WriteLine($"LOGIN EMAIL: {email}");
+        Console.WriteLine($"USER FOUND: {user != null}");
+
+        if (user != null)
+        {
+            Console.WriteLine($"USER ID: {user.Id}");
+            Console.WriteLine($"USER NAME: {user.Name}");
+            Console.WriteLine($"USER EMAIL: {user.Email}");
+            Console.WriteLine($"USER ROLE: {user.Role}");
+            Console.WriteLine($"PASSWORD HASH: {user.PasswordHash}");
+        }
+
+        Console.WriteLine("=================================");
+
         if (user == null)
         {
             return Unauthorized(new AuthResponse
@@ -154,6 +170,7 @@ public class AuthController : ControllerBase
                 request.Password,
                 user.PasswordHash
             );
+        Console.WriteLine($"PASSWORD VALID: {passwordValid}");
 
         if (!passwordValid)
         {
@@ -183,6 +200,26 @@ public class AuthController : ControllerBase
         });
     }
 
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] OtpDto dto)
+    {
+        // Demo: giả sử OTP đúng là 123456
+        if (dto.Otp != "123456")
+        {
+            return BadRequest(new { message = "Invalid OTP" });
+        }
+
+        // ✅ PHẢI LẤY ĐÚNG ROLE TỪ DB DỰA TRÊN EMAIL
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
+
+        if (user == null)
+        {
+            return BadRequest(new { message = "User not found" });
+        }
+
+        // Trả về đúng Role của user
+        return Ok(new { role = user.Role });
+    }
     // =========================================================
     // GET CURRENT USER
     // GET: /api/auth/me

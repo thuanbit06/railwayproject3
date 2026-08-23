@@ -3,7 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RailAdmin.API.Data;
+using RailAdmin.API.Repository.IRepository;
+using RailAdmin.API.Services;
+using RailAdmin.API.Services.IService;
 using System.Text;
+using RailAdmin.API.Repository;
+using RailAdmin.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("Default")
+        builder.Configuration.GetConnectionString("DefaultConnection")
     )
 );
 
@@ -111,18 +116,35 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5175"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
 });
 
+
+
+// Repository
+builder.Services.AddScoped<IPassengerRepository, PassengerRepository>();
+
+
+// Service
+builder.Services.AddScoped<IPassengerService, PassengerService>();
+
+
+
+var app = builder.Build();
+
+
 // =========================================================
 // BUILD APP
 // =========================================================
 
-var app = builder.Build();
+
 
 // =========================================================
 // MIDDLEWARE
@@ -141,5 +163,17 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
+
+    await db.Database.MigrateAsync();
+
+    await AdminSeeder.SeedAdminAsync(
+        db,
+        app.Configuration);
+}
 
 app.Run();

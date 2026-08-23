@@ -5,40 +5,73 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // ✅ Thêm dòng này
+  const [loading, setLoading] = useState(true);
 
-  /* =======================
-     [1] PHỤC HỒI USER KHI RELOAD
-  ======================== */
+  // =======================
+  // PHỤC HỒI USER KHI RELOAD
+  // =======================
   useEffect(() => {
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
 
     if (token && savedUser) {
-      // Gắn token vào header cho mọi request sau này
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      setUser(JSON.parse(savedUser));
+      try {
+        const userData = JSON.parse(savedUser);
+
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        setUser(userData);
+      } catch (error) {
+        console.error("Invalid saved user:", error);
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
     }
 
-    setLoading(false); // ✅ Đã check xong, mới cho phép render
+    setLoading(false);
   }, []);
 
+  // =======================
+  // LOGIN
+  // =======================
   const login = async (email, password) => {
     try {
-      const res = await api.post("/auth/login", { email, password });
-      const { token, role, name } = res.data;
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
 
-      const userData = { name, role };
+      const { token, user } = res.data;
 
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      };
+      // Lưu JWT
       localStorage.setItem("token", token);
+
+      // Lưu user
       localStorage.setItem("user", JSON.stringify(userData));
 
-      // Gắn token ngay sau khi login
+      // Gắn JWT vào Axios
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // Cập nhật React state
       setUser(userData);
 
-      return { success: true, role };
+      console.log("LOGIN USER:", userData);
+
+      return {
+        success: true,
+        role: userData.role,
+        user: userData,
+      };
     } catch (err) {
+      console.error("LOGIN ERROR:", err);
+
       return {
         success: false,
         message: err.response?.data?.message || "Invalid credentials",
@@ -46,6 +79,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // =======================
+  // REGISTER
+  // =======================
   const register = async (name, email, password) => {
     try {
       const res = await api.post("/auth/register", {
@@ -53,8 +89,14 @@ export const AuthProvider = ({ children }) => {
         email,
         password,
       });
-      return { success: true, data: res.data };
+
+      return {
+        success: true,
+        data: res.data,
+      };
     } catch (err) {
+      console.error("REGISTER ERROR:", err);
+
       return {
         success: false,
         message: err.response?.data?.message || "Registration failed",
@@ -62,16 +104,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // =======================
+  // LOGOUT
+  // =======================
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+
     delete api.defaults.headers.common["Authorization"];
+
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
-      {!loading && children} {/* ✅ Chỉ render khi đã check xong */}
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        loading,
+      }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

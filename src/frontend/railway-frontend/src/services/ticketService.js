@@ -1,17 +1,40 @@
 import api from "./api";
 
-// Lấy tất cả vé (Admin)
+// =====================================================
+// ADMIN - Lấy tất cả vé
+// GET /api/admin/tickets
+// =====================================================
 export const getTickets = () => api.get("/admin/tickets");
 
-// Lấy vé của user hiện tại
+// =====================================================
+// USER - Lấy vé của user hiện tại
+// GET /api/tickets/my-tickets
+// =====================================================
 export const getMyTickets = () => api.get("/tickets/my-tickets");
 
-// Xem chi tiết 1 vé theo PNR
-export const getTicketByPNR = (pnr) => api.get(`/tickets/${pnr}`);
+// =====================================================
+// Lấy chi tiết vé theo PNR
+// GET /api/tickets/pnr/{pnr}
+// =====================================================
+export const getTicketByPNR = (pnr) => api.get(`/tickets/pnr/${pnr}`);
 
-// Xóa hẳn vé (hard delete – admin)
+// =====================================================
+// ADMIN - Xóa vé
+// DELETE /api/admin/tickets/{id}
+// =====================================================
 export const deleteTicket = (id) => api.delete(`/admin/tickets/${id}`);
 
-// Hủy vé (soft delete – cập nhật trạng thái)
-export const cancelTicket = (pnr, reason) =>
-  api.put(`/tickets/${pnr}/cancel`, { reason });
+// =====================================================
+// Hủy vé
+// PUT /api/tickets/{pnr}/cancel
+// =====================================================
+export const cancelTicket = (pnr, reason = "Cancelled by admin") =>
+  api.put(`/tickets/${pnr}/cancel`, {
+    reason,
+  });
+
+// =====================================================
+// Kiểm tra trạng thái PNR
+// GET /api/tickets/pnr/{pnr}
+// =====================================================
+export const checkPnrStatus = (pnr) => api.get(`/tickets/pnr/${pnr}`);

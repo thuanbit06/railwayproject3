@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import { Download, TrendingUp, Ticket, Users, Percent } from "lucide-react";
 import {
@@ -15,70 +15,80 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import analyticsService from "../../services/analyticsService";
 
 const Analytics = () => {
   const [range, setRange] = useState("Month");
 
-  const rev = {
-    Week: [
-      { n: "Mon", r: 8200 },
-      { n: "Tue", r: 9500 },
-      { n: "Wed", r: 11000 },
-      { n: "Thu", r: 9800 },
-      { n: "Fri", r: 12500 },
-      { n: "Sat", r: 15200 },
-      { n: "Sun", r: 11200 },
-    ],
-    Month: [
-      { n: "Jan", r: 42000 },
-      { n: "Feb", r: 51000 },
-      { n: "Mar", r: 47000 },
-      { n: "Apr", r: 63000 },
-      { n: "May", r: 58000 },
-      { n: "Jun", r: 72000 },
-    ],
-    Year: [
-      { n: "2021", r: 480000 },
-      { n: "2022", r: 560000 },
-      { n: "2023", r: 620000 },
-      { n: "2024", r: 720000 },
-    ],
+  const [analytics, setAnalytics] = useState({
+    totalRevenue: 0,
+    ticketsSold: 0,
+    activeUsers: 0,
+    occupancyRate: null,
+    classDistribution: [],
+    revenue: [],
+    ticketVolume: [],
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await analyticsService.getAnalytics(range);
+
+      setAnalytics(data);
+    } catch (err) {
+      console.error("Analytics API Error:", err);
+
+      setError(
+        err.response?.data?.message || "Không thể tải dữ liệu Analytics.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const vol = {
-    Week: [
-      { n: "Mon", t: 220 },
-      { n: "Tue", t: 310 },
-      { n: "Wed", t: 280 },
-      { n: "Thu", t: 350 },
-      { n: "Fri", t: 410 },
-      { n: "Sat", t: 520 },
-      { n: "Sun", t: 390 },
-    ],
-    Month: [
-      { n: "Jan", t: 1200 },
-      { n: "Feb", t: 1450 },
-      { n: "Mar", t: 1380 },
-      { n: "Apr", t: 1890 },
-      { n: "May", t: 1740 },
-      { n: "Jun", t: 2100 },
-    ],
-    Year: [
-      { n: "2021", t: 14500 },
-      { n: "2022", t: 16800 },
-      { n: "2023", t: 18200 },
-      { n: "2024", t: 21000 },
-    ],
-  };
+  useEffect(() => {
+    fetchAnalytics();
+  }, [range]);
 
-  const dist = [
-    { name: "AC First", value: 22, color: "#2563eb" },
-    { name: "AC Second", value: 35, color: "#f97316" },
-    { name: "Sleeper", value: 43, color: "#78350f" },
+  const stats = [
+    {
+      label: "Total Revenue",
+      value: `$${Number(analytics.totalRevenue || 0).toLocaleString()}`,
+      icon: TrendingUp,
+      bg: "bg-green-100",
+      c: "text-green-600",
+    },
+    {
+      label: "Tickets Sold",
+      value: Number(analytics.ticketsSold || 0).toLocaleString(),
+      icon: Ticket,
+      bg: "bg-blue-100",
+      c: "text-blue-600",
+    },
+    {
+      label: "Occupancy Rate",
+      value:
+        analytics.occupancyRate !== null ?
+          `${analytics.occupancyRate}%`
+        : "N/A",
+      icon: Percent,
+      bg: "bg-orange-100",
+      c: "text-orange-600",
+    },
+    {
+      label: "Active Users",
+      value: Number(analytics.activeUsers || 0).toLocaleString(),
+      icon: Users,
+      bg: "bg-purple-100",
+      c: "text-purple-600",
+    },
   ];
-
-  const totalRev = rev[range]?.reduce((s, i) => s + i.r, 0) || 0;
-  const totalTkt = vol[range]?.reduce((s, i) => s + i.t, 0) || 0;
 
   return (
     <div className="space-y-6">
@@ -101,6 +111,7 @@ const Analytics = () => {
             <button
               key={r}
               onClick={() => setRange(r)}
+              disabled={loading}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold ${
                 range === r ?
                   "bg-orange-500 text-white shadow"
@@ -112,47 +123,34 @@ const Analytics = () => {
         </div>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="bg-white rounded-2xl border p-6 text-center text-gray-500">
+          Loading analytics...
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {[
-          {
-            label: "Total Revenue",
-            value: `$${totalRev.toLocaleString()}`,
-            icon: TrendingUp,
-            bg: "bg-green-100",
-            c: "text-green-600",
-          },
-          {
-            label: "Tickets Sold",
-            value: totalTkt.toLocaleString(),
-            icon: Ticket,
-            bg: "bg-blue-100",
-            c: "text-blue-600",
-          },
-          {
-            label: "Occupancy Rate",
-            value: "84%",
-            icon: Percent,
-            bg: "bg-orange-100",
-            c: "text-orange-600",
-          },
-          {
-            label: "Active Users",
-            value: "2,148",
-            icon: Users,
-            bg: "bg-purple-100",
-            c: "text-purple-600",
-          },
-        ].map((s, i) => (
+        {stats.map((s, i) => (
           <div
             key={i}
             className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
             <div className={`p-3 rounded-xl ${s.bg}`}>
               <s.icon size={20} className={s.c} />
             </div>
+
             <div>
               <p className="text-xs text-gray-500">{s.label}</p>
-              <p className="text-xl font-bold">{s.value}</p>
+
+              <p className="text-xl font-bold">{loading ? "..." : s.value}</p>
             </div>
           </div>
         ))}
@@ -160,79 +158,130 @@ const Analytics = () => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Revenue Line Chart */}
+        {/* Revenue */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border">
           <h3 className="font-bold mb-4">Revenue Overview</h3>
+
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rev[range]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="n" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="r"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {analytics.revenue.length > 0 ?
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics.revenue}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+
+                  <XAxis dataKey="name" fontSize={12} />
+
+                  <YAxis fontSize={12} />
+
+                  <Tooltip
+                    formatter={(value) => `$${Number(value).toLocaleString()}`}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            : <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                No revenue data available.
+              </div>
+            }
           </div>
         </div>
 
-        {/* Pie Chart */}
+        {/* Class Distribution */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
           <h3 className="font-bold mb-4">Class Distribution</h3>
-          <div className="relative h-40 w-40 mx-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={dist}
-                  innerRadius={50}
-                  outerRadius={65}
-                  dataKey="value">
-                  {dist.map((d, i) => (
-                    <Cell key={i} fill={d.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-black">100%</span>
-            </div>
-          </div>
-          <div className="mt-6 space-y-3">
-            {dist.map((d, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ background: d.color }}
-                  />
-                  {d.name}
-                </span>
-                <span className="font-bold">{d.value}%</span>
+
+          {analytics.classDistribution.length > 0 ?
+            <>
+              <div className="relative h-40 w-40 mx-auto">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analytics.classDistribution}
+                      innerRadius={50}
+                      outerRadius={65}
+                      dataKey="value">
+                      {analytics.classDistribution.map((item, index) => (
+                        <Cell
+                          key={index}
+                          fill={
+                            [
+                              "#2563eb",
+                              "#f97316",
+                              "#78350f",
+                              "#16a34a",
+                              "#9333ea",
+                            ][index % 5]
+                          }
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+
+              <div className="mt-6 space-y-3">
+                {analytics.classDistribution.map((item, index) => (
+                  <div key={index} className="flex justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{
+                          background: [
+                            "#2563eb",
+                            "#f97316",
+                            "#78350f",
+                            "#16a34a",
+                            "#9333ea",
+                          ][index % 5],
+                        }}
+                      />
+
+                      {item.name}
+                    </span>
+
+                    <span className="font-bold">{item.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          : <div className="h-40 flex items-center justify-center text-gray-400 text-sm text-center">
+              Class distribution data
+              <br />
+              is not available.
+            </div>
+          }
         </div>
       </div>
 
-      {/* Ticket Volume Bar Chart */}
+      {/* Ticket Volume */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border">
         <h3 className="font-bold mb-4">Ticket Volume</h3>
+
         <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={vol[range]}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="n" fontSize={12} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="t" fill="#2563eb" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {analytics.ticketVolume.length > 0 ?
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.ticketVolume}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+
+                <XAxis dataKey="name" fontSize={12} />
+
+                <YAxis fontSize={12} />
+
+                <Tooltip />
+
+                <Bar dataKey="tickets" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          : <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+              No ticket volume data available.
+            </div>
+          }
         </div>
       </div>
     </div>
