@@ -8,48 +8,187 @@ namespace RailAdmin.API.Controllers;
 [ApiController]
 [Route("api/admin/reservations")]
 [Authorize(Roles = "Admin")]
-public class ReservationsController : ControllerBase
+public class AdminReservationsController : ControllerBase
 {
     private readonly AppDbContext _db;
 
-    public ReservationsController(AppDbContext db)
+    public AdminReservationsController(AppDbContext db)
     {
         _db = db;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
+    // =========================================================
+    // GET: /api/admin/reservations/recent?count=5
+    // =========================================================
+    [HttpGet("recent")]
+    public async Task<IActionResult> GetRecentReservations(
+        [FromQuery] int count = 5)
     {
-        return Ok(await _db.Bookings.ToListAsync());
+        try
+        {
+            // Giới hạn count để tránh request quá lớn
+            if (count <= 0)
+                count = 5;
+
+            if (count > 50)
+                count = 50;
+
+            var reservations = await _db.Reservations
+                .AsNoTracking()
+
+                // Passenger
+                .Include(r => r.Passenger)
+
+                // Schedule -> Train
+                .Include(r => r.Schedule)
+                    .ThenInclude(s => s.Train)
+
+                // Schedule -> FromStation
+                .Include(r => r.Schedule)
+                    .ThenInclude(s => s.FromStation)
+
+                // Schedule -> ToStation
+                .Include(r => r.Schedule)
+                    .ThenInclude(s => s.ToStation)
+
+                // Reservation -> Tickets -> Seat
+                .Include(r => r.Tickets)
+                    .ThenInclude(t => t.Seat)
+
+                .OrderByDescending(r => r.BookingDate)
+                .Take(count)
+                .ToListAsync();
+
+            var recent = reservations.Select(r => new
+            {
+                // Reservation
+                id = r.Id,
+
+                // PNR
+                pnr = r.Tickets
+                    .OrderByDescending(t => t.IssuedAt)
+                    .Select(t => t.PNR)
+                    .FirstOrDefault()
+                    ?? r.PNR
+                    ?? "N/A",
+
+                // Passenger
+                passengerName = r.Passenger?.FullName ?? "N/A",
+
+                passengerEmail = r.Passenger?.Email ?? "N/A",
+
+                passengerPhone = r.Passenger?.Phone ?? "N/A",
+
+                // Train
+                trainName = r.Schedule?.Train?.TrainName ?? "N/A",
+
+                trainNo = r.Schedule?.Train?.TrainNo ?? "N/A",
+
+                // Route
+                fromStation = r.Schedule?.FromStation?.Name ?? "N/A",
+
+                toStation = r.Schedule?.ToStation?.Name ?? "N/A",
+
+                // Journey
+                journeyDate = r.JourneyDate.ToString("yyyy-MM-dd"),
+
+                // Reservation status
+                status = r.Status ?? "Unknown",
+
+                // Booking date
+                createdAt = r.BookingDate.ToString("dd/MM/yyyy HH:mm"),
+
+                // Seat
+                seatNo = r.Tickets
+                    .Select(t => t.Seat != null
+                        ? t.Seat.SeatNo
+                        : null)
+                    .FirstOrDefault()
+                    ?? "Not Assigned"
+            })
+            .ToList();
+
+            return Ok(recent);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"[GetRecentReservations] Error: {ex}");
+
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new
+                {
+                    message = "Failed to load recent reservations.",
+                    error = ex.Message
+                });
+        }
     }
 
-    [HttpPut("{id}/confirm")]
-    public async Task<IActionResult> Confirm(int id)
+
+    // =========================================================
+    // GET: /api/admin/reservations/stats
+    // =========================================================
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetReservationStats()
     {
-        var b = await _db.Bookings.FindAsync(id);
+        try
+        {
+            var confirmed = await _db.Reservations
+                .CountAsync(r => r.Status == "Confirmed");
 
-        if (b == null)
-            return NotFound();
+            var waiting = await _db.Reservations
+                .CountAsync(r => r.Status == "Waiting");
 
-        b.Status = "Confirmed";
+            var pending = await _db.Reservations
+                .CountAsync(r => r.Status == "Pending");
 
-        await _db.SaveChangesAsync();
+            var cancelled = await _db.Reservations
+                .CountAsync(r => r.Status == "Cancelled");
 
-        return NoContent();
-    }
+            var total = await _db.Reservations.CountAsync();
 
-    [HttpPut("{id}/cancel")]
-    public async Task<IActionResult> Cancel(int id)
-    {
-        var b = await _db.Bookings.FindAsync(id);
+            return Ok(new
+            {
+                confirmed,
+                waiting,
+                pending,
+                cancelled,
+                total,
 
-        if (b == null)
-            return NotFound();
+                confirmedPercent =
+                    total > 0
+                        ? Math.Round((double)confirmed / total * 100, 1)
+                        : 0,
 
-        b.Status = "Cancelled";
+                waitingPercent =
+                    total > 0
+                        ? Math.Round((double)waiting / total * 100, 1)
+                        : 0,
 
-        await _db.SaveChangesAsync();
+                pendingPercent =
+                    total > 0
+                        ? Math.Round((double)pending / total * 100, 1)
+                        : 0,
 
-        return NoContent();
+                cancelledPercent =
+                    total > 0
+                        ? Math.Round((double)cancelled / total * 100, 1)
+                        : 0
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"[GetReservationStats] Error: {ex}");
+
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new
+                {
+                    message = "Failed to load reservation statistics.",
+                    error = ex.Message
+                });
+        }
     }
 }

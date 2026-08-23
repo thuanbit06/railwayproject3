@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -17,6 +17,9 @@ import {
   Plus,
 } from "lucide-react";
 import logo from "../../assets/Railway.png";
+// Thay vì axiosClient, dùng api instance chung
+import api from "../../services/api";
+import { getRecentReservations } from "../../services/adminReservationService";
 
 const AdminDashboard = () => {
   const nav = useNavigate();
@@ -25,6 +28,61 @@ const AdminDashboard = () => {
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [recent, setRecent] = useState([]);
+
+  const [dashboardData, setDashboardData] = useState({
+    stats: {
+      totalTrains: 0,
+      totalReservations: 0,
+      ticketsSold: 0,
+      totalRevenue: 0,
+    },
+    revenue: [],
+    distribution: [],
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [statsError, setStatsError] = useState("");
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoadingStats(true);
+        setStatsError("");
+
+        const response = await api.get("/admin/stats");
+
+        setDashboardData(response.data);
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error);
+
+        setStatsError(
+          error.response?.data?.message ||
+            "Failed to load dashboard statistics.",
+        );
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    if (loc.pathname === "/admin/dashboard") {
+      fetchDashboardStats();
+    }
+  }, [loc.pathname]);
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const res = await getRecentReservations(5);
+        setRecent(res.data);
+      } catch (err) {
+        console.error("Failed to load recent reservations:", err);
+      }
+    };
+
+    if (loc.pathname === "/admin/dashboard") {
+      fetchRecent();
+    }
+  }, [loc.pathname]);
 
   const items = [
     {
@@ -357,6 +415,13 @@ const AdminDashboard = () => {
 
           {loc.pathname === "/admin/dashboard" && (
             <>
+              {statsError && (
+                <div className="mx-4 sm:mx-6 lg:mx-8 max-w-[1440px] mx-auto mb-6">
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    {statsError}
+                  </div>
+                </div>
+              )}
               <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto">
                 {/* Total Trains */}
 
@@ -366,7 +431,9 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-500">Total Trains</p>
 
                       <h3 className="text-3xl font-bold text-[#0b1c30] mt-2">
-                        128
+                        {loadingStats ?
+                          "..."
+                        : dashboardData.stats.totalTrains.toLocaleString()}
                       </h3>
 
                       <p className="text-xs text-emerald-600 mt-2 font-medium">
@@ -388,7 +455,10 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-500">Reservations</p>
 
                       <h3 className="text-3xl font-bold text-[#0b1c30] mt-2">
-                        1,248
+                        {loadingStats ?
+                          "..."
+                        : dashboardData.stats.totalReservations.toLocaleString()
+                        }
                       </h3>
 
                       <p className="text-xs text-emerald-600 mt-2 font-medium">
@@ -410,7 +480,9 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-500">Tickets Sold</p>
 
                       <h3 className="text-3xl font-bold text-[#0b1c30] mt-2">
-                        3,842
+                        {loadingStats ?
+                          "..."
+                        : dashboardData.stats.ticketsSold.toLocaleString()}
                       </h3>
 
                       <p className="text-xs text-emerald-600 mt-2 font-medium">
@@ -432,7 +504,10 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-500">Revenue</p>
 
                       <h3 className="text-3xl font-bold text-[#0b1c30] mt-2">
-                        $84.2K
+                        {loadingStats ?
+                          "..."
+                        : `${dashboardData.stats.totalRevenue.toLocaleString("vi-VN")} ₫`
+                        }
                       </h3>
 
                       <p className="text-xs text-emerald-600 mt-2 font-medium">
@@ -460,12 +535,12 @@ const AdminDashboard = () => {
                       <h3 className="text-lg font-bold">Revenue Overview</h3>
 
                       <p className="text-sm text-gray-500">
-                        Monthly revenue performance
+                        Revenue performance over the last 7 days
                       </p>
                     </div>
 
                     <select className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none">
-                      <option>Last 7 months</option>
+                      <option>Last 7 days</option>
                       <option>This year</option>
                     </select>
                   </div>
@@ -473,35 +548,41 @@ const AdminDashboard = () => {
                   {/* Simple Chart Placeholder */}
 
                   <div className="h-64 flex items-end gap-3 sm:gap-5 border-b border-gray-200 px-2">
-                    {[45, 62, 52, 75, 68, 88, 96].map((height, index) => (
-                      <div
-                        key={index}
-                        className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
-                        <div
-                          style={{
-                            height: `${height}%`,
-                          }}
-                          className="
-                              w-full
-                              max-w-[55px]
-                              bg-gradient-to-t
-                              from-[#004ac6]
-                              to-[#60a5fa]
-                              rounded-t-lg
-                              hover:opacity-80
-                              transition
-                            "
-                        />
+                    {dashboardData.revenue.map((item, index) => {
+                      const maxRevenue = Math.max(
+                        ...dashboardData.revenue.map((x) => Number(x.revenue)),
+                        1,
+                      );
 
-                        <span className="text-[10px] sm:text-xs text-gray-400">
-                          {
-                            ["Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"][
-                              index
-                            ]
-                          }
-                        </span>
-                      </div>
-                    ))}
+                      const height = (Number(item.revenue) / maxRevenue) * 100;
+
+                      return (
+                        <div
+                          key={item.date}
+                          className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
+                          <div
+                            style={{
+                              height: `${Math.max(height, 5)}%`,
+                            }}
+                            className="
+          w-full
+          max-w-[55px]
+          bg-gradient-to-t
+          from-[#004ac6]
+          to-[#60a5fa]
+          rounded-t-lg
+          hover:opacity-80
+          transition
+        "
+                            title={`${Number(item.revenue).toLocaleString("vi-VN")} ₫`}
+                          />
+
+                          <span className="text-[10px] sm:text-xs text-gray-400">
+                            {item.label}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -612,69 +693,49 @@ const AdminDashboard = () => {
                     </thead>
 
                     <tbody className="divide-y divide-gray-100">
-                      {[
-                        {
-                          name: "Nguyen Van An",
-                          train: "RL101 Express",
-                          date: "18 Aug 2026",
-                          amount: "$120",
-                          status: "Confirmed",
-                        },
-                        {
-                          name: "Tran Minh Anh",
-                          train: "RL205 Premium",
-                          date: "18 Aug 2026",
-                          amount: "$185",
-                          status: "Confirmed",
-                        },
-                        {
-                          name: "Le Hoang Nam",
-                          train: "RL310 Express",
-                          date: "17 Aug 2026",
-                          amount: "$95",
-                          status: "Pending",
-                        },
-                        {
-                          name: "Pham Thu Ha",
-                          train: "RL402 Premium",
-                          date: "17 Aug 2026",
-                          amount: "$220",
-                          status: "Confirmed",
-                        },
-                      ].map((reservation, index) => (
-                        <tr
-                          key={index}
-                          className="hover:bg-[#f8f9ff] transition">
-                          <td className="px-5 py-4">
-                            <p className="font-semibold text-sm">
-                              {reservation.name}
-                            </p>
-                          </td>
-
-                          <td className="px-5 py-4 text-sm text-gray-600">
-                            {reservation.train}
-                          </td>
-
-                          <td className="px-5 py-4 text-sm text-gray-600">
-                            {reservation.date}
-                          </td>
-
-                          <td className="px-5 py-4 text-sm font-bold">
-                            {reservation.amount}
-                          </td>
-
-                          <td className="px-5 py-4">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                reservation.status === "Confirmed" ?
-                                  "bg-emerald-50 text-emerald-600"
-                                : "bg-orange-50 text-orange-600"
-                              }`}>
-                              {reservation.status}
-                            </span>
+                      {recent.length === 0 ?
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-5 py-8 text-center text-sm text-gray-400">
+                            {loadingStats ?
+                              "Loading..."
+                            : "No recent reservations found."}
                           </td>
                         </tr>
-                      ))}
+                      : recent.map((r, index) => (
+                          <tr
+                            key={r.id || index}
+                            className="hover:bg-[#f8f9ff] transition">
+                            <td className="px-5 py-4">
+                              <p className="font-semibold text-sm">
+                                {r.passengerName}
+                              </p>
+                            </td>
+                            <td className="px-5 py-4 text-sm text-gray-600">
+                              {r.trainName} ({r.trainNo})
+                            </td>
+                            <td className="px-5 py-4 text-sm text-gray-600">
+                              {r.journeyDate}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-bold">
+                              {r.pnr}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  r.status === "Confirmed" ?
+                                    "bg-emerald-50 text-emerald-600"
+                                  : r.status === "Waiting" ?
+                                    "bg-orange-50 text-orange-600"
+                                  : "bg-red-50 text-red-600"
+                                }`}>
+                                {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      }
                     </tbody>
                   </table>
                 </div>

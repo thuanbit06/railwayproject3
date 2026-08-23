@@ -3,7 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RailAdmin.API.Data;
+using RailAdmin.API.Repository.IRepository;
+using RailAdmin.API.Services;
+using RailAdmin.API.Services.IService;
 using System.Text;
+using RailAdmin.API.Repository;
+using RailAdmin.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("Default")
+        builder.Configuration.GetConnectionString("DefaultConnection")
     )
 );
 
@@ -121,6 +126,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+
+// Repository
+builder.Services.AddScoped<IPassengerRepository, PassengerRepository>();
+
+
+// Service
+builder.Services.AddScoped<IPassengerService, PassengerService>();
+
+
+
 var app = builder.Build();
 
 
@@ -152,6 +168,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider
         .GetRequiredService<AppDbContext>();
+
+    await db.Database.MigrateAsync();
 
     await AdminSeeder.SeedAdminAsync(
         db,

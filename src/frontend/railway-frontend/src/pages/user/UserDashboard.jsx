@@ -404,15 +404,15 @@ const UserDashboard = () => {
                 MOST POPULAR
               </span>
               <h3 className="text-lg font-bold text-white">
-                New Delhi ⇄ Mumbai
+                New Delhi â‡„ Mumbai
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                Fastest: 12h 30m • Daily Trains: 15
+                Fastest: 12h 30m â€¢ Daily Trains: 15
               </p>
               <button
                 onClick={() => nav("/book")}
                 className="mt-3 bg-white text-slate-900 font-bold text-xs px-4 py-2 rounded-lg w-max hover:bg-slate-100 transition">
-                Book Now ₹1,450
+                Book Now â‚¹1,450
               </button>
             </div>
           </div>
@@ -428,10 +428,10 @@ const UserDashboard = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
                 <h4 className="text-sm font-bold text-white">
-                  Chennai ⇄ Bangalore
+                  Chennai â‡„ Bangalore
                 </h4>
                 <p className="text-[11px] text-slate-300">
-                  Fastest: 4h 15m • 18 Daily Departures
+                  Fastest: 4h 15m â€¢ 18 Daily Departures
                 </p>
               </div>
             </div>
@@ -445,7 +445,7 @@ const UserDashboard = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
                 <h4 className="text-xs font-bold text-white">
-                  Kolkata ⇄ Patna
+                  Kolkata â‡„ Patna
                 </h4>
                 <p className="text-[10px] text-slate-300">
                   Express Service Daily
@@ -462,10 +462,10 @@ const UserDashboard = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
                 <h4 className="text-xs font-bold text-white">
-                  Jaipur ⇄ Jodhpur
+                  Jaipur â‡„ Jodhpur
                 </h4>
                 <p className="text-[10px] text-slate-300">
-                  Luxury Trains • 4h 45m
+                  Luxury Trains â€¢ 4h 45m
                 </p>
               </div>
             </div>
@@ -522,7 +522,7 @@ const UserDashboard = () => {
 
               <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
                 <span className="text-xs font-bold text-slate-700">
-                  Fare from ₹1,200
+                  Fare from â‚¹1,200
                 </span>
                 <button
                   onClick={() => nav("/book")}
@@ -574,7 +574,7 @@ const UserDashboard = () => {
 
               <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
                 <span className="text-xs font-bold text-slate-700">
-                  Fare from ₹1,650
+                  Fare from â‚¹1,650
                 </span>
                 <button
                   onClick={() => nav("/book")}
@@ -711,7 +711,9 @@ const UserDashboard = () => {
                 monthly business trips. The interface is intuitive, and the
                 refund process is genuinely the fastest I've experienced."
               </p>
-              <div className="text-orange-400 text-xs mt-3">★★★★★</div>
+              <div className="text-orange-400 text-xs mt-3">
+                â˜…â˜…â˜…â˜…â˜…
+              </div>
             </div>
           </div>
         </div>
@@ -805,7 +807,7 @@ const UserDashboard = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-col sm:flex-row justify-between items-center text-[10px] text-slate-500">
           <p>
-            © 2026 RailLink Railway Reservation System. All rights reserved.
+            Â© 2026 RailLink Railway Reservation System. All rights reserved.
           </p>
           <div className="flex gap-4 mt-2 sm:mt-0">
             <span>Designed for Excellence</span>

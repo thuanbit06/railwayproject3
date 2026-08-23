@@ -2,7 +2,7 @@ import axios from "axios";
 
 // ✅ Tạo instance Axios riêng
 const api = axios.create({
-  baseURL: "http://localhost:5159/api", // 👈 PHẢI khớp với backend .NET 8
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -34,10 +34,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Nếu token hết hạn hoặc chưa đăng nhập (401)
-    if (error.response?.status === 401) {
+    const isAuthRequest = /\/auth\/(login|register)$/.test(
+      error.config?.url || "",
+    );
+
+    if (error.response?.status === 401 && !isAuthRequest) {
       console.warn("Token expired or unauthorized. Logging out...");
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      delete api.defaults.headers.common["Authorization"];
       window.location.href = "/login"; // Force logout
     }
     return Promise.reject(error);

@@ -1,10 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RailAdmin.API.Data;
-using RailAdmin.API.DTOs;
 using RailAdmin.API.Models;
-using System.Security.Claims;
 
 namespace RailAdmin.API.Controllers;
 
@@ -13,160 +10,188 @@ namespace RailAdmin.API.Controllers;
 public class TicketsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public TicketsController(AppDbContext db) => _db = db;
 
-    [Authorize]
-    [HttpGet("my-tickets")]
-    public async Task<IActionResult> GetMyTickets()
+    public TicketsController(AppDbContext db)
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (!int.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { message = "Invalid token." });
-
-        var tickets = await _db.Tickets
-            .Where(t => t.Reservation != null && t.Reservation.BookedByUserId == userId)
-            .Include(t => t.Reservation!)
-                .ThenInclude(r => r.Schedule!)
-                    .ThenInclude(s => s.Train)
-            .Include(t => t.Reservation!)
-                .ThenInclude(r => r.Schedule!)
-                    .ThenInclude(s => s.FromStation)
-            .Include(t => t.Reservation!)
-                .ThenInclude(r => r.Schedule!)
-                    .ThenInclude(s => s.ToStation)
-            .OrderByDescending(t => t.IssuedAt)
-            .Select(t => new
-            {
-                t.Id,
-                TrainName = t.Reservation!.Schedule!.Train!.TrainName,
-                FromStation = t.Reservation.Schedule!.FromStation!.Name,
-                ToStation = t.Reservation.Schedule!.ToStation!.Name,
-                JourneyDate = t.Reservation.JourneyDate,
-                PNR = t.PNR,
-                Status = t.Reservation.Status
-            })
-            .ToListAsync();
-
-        return Ok(tickets);
+        _db = db;
     }
 
+    // =====================================================
     // GET: /api/tickets/pnr/{pnr}
+    // =====================================================
+
     [HttpGet("pnr/{pnr}")]
     public async Task<IActionResult> GetPNRStatus(string pnr)
     {
         var ticket = await _db.Tickets
-            .Include(t => t.Reservation!)
+            .Include(t => t.Reservation)
                 .ThenInclude(r => r.Passenger)
-            .Include(t => t.Reservation!)
-                .ThenInclude(r => r.Schedule!)
+
+            .Include(t => t.Reservation)
+                .ThenInclude(r => r.Schedule)
                     .ThenInclude(s => s.Train)
-            .Include(t => t.Reservation!)
-                .ThenInclude(r => r.Schedule!)
+
+            .Include(t => t.Reservation)
+                .ThenInclude(r => r.Schedule)
                     .ThenInclude(s => s.FromStation)
-            .Include(t => t.Reservation!)
-                .ThenInclude(r => r.Schedule!)
+
+            .Include(t => t.Reservation)
+                .ThenInclude(r => r.Schedule)
                     .ThenInclude(s => s.ToStation)
+
             .Include(t => t.Seat)
+
             .FirstOrDefaultAsync(t => t.PNR == pnr);
 
         if (ticket == null)
-            return NotFound("PNR not found");
+        {
+            return NotFound(new
+            {
+                message = $"PNR '{pnr}' not found."
+            });
+        }
 
         var reservation = ticket.Reservation;
-        var schedule = reservation?.Schedule;
-        var train = schedule?.Train;
-        var fromStation = schedule?.FromStation;
-        var toStation = schedule?.ToStation;
-        var seat = ticket.Seat;
-        var passenger = reservation?.Passenger;
+
+        if (reservation == null)
+        {
+            return NotFound(new
+            {
+                message = "Reservation data not found."
+            });
+        }
+
+        var schedule = reservation.Schedule;
 
         var result = new
         {
-            PNR = ticket.PNR,
-            PaymentStatus = ticket.PaymentStatus,
-            IssuedAt = ticket.IssuedAt,
+            id = ticket.Id,
 
-            TrainName = train?.TrainName ?? "N/A",
-            TrainNo = train?.TrainNo ?? "N/A",
+            pnr = ticket.PNR,
 
-            FromStation = fromStation?.Name ?? "N/A",
-            ToStation = toStation?.Name ?? "N/A",
+            status = ticket.PaymentStatus,
 
-            JourneyDate = reservation?.JourneyDate,
-            DepartureTime = schedule?.DepartureTime,
+            paymentStatus = ticket.PaymentStatus,
 
-            SeatNo = seat?.SeatNo ?? "N/A",
-            CoachClass = ticket.CoachClass,
+            trainName =
+                schedule?.Train?.TrainName ?? "N/A",
 
-            Fare = ticket.Fare,
-            GSTAmount = ticket.GSTAmount,
-            TotalAmount = ticket.TotalAmount,
+            trainNo =
+                schedule?.Train?.TrainNo ?? "N/A",
 
-            Passenger = passenger == null ? null : new
-            {
-                FullName = passenger.FullName,
-                Age = passenger.Age,
-                Gender = passenger.Gender
-            }
+            fromStation =
+                schedule?.FromStation?.Name ?? "N/A",
+
+            toStation =
+                schedule?.ToStation?.Name ?? "N/A",
+
+            journeyDate =
+                reservation.JourneyDate.ToString("yyyy-MM-dd"),
+
+            departureTime =
+                schedule?.DepartureTime
+                    .ToString(@"hh\:mm\:ss") ?? "",
+
+            seatNo =
+                ticket.Seat?.SeatNo ?? "N/A",
+
+            coachClass =
+                ticket.CoachClass ?? "N/A",
+
+            fare = ticket.Fare,
+
+            gstAmount = ticket.GSTAmount,
+
+            totalAmount = ticket.TotalAmount,
+
+            passenger =
+                reservation.Passenger == null
+                    ? null
+                    : new
+                    {
+                        fullName =
+                            reservation.Passenger.FullName,
+
+                        age =
+                            reservation.Passenger.Age,
+
+                        gender =
+                            reservation.Passenger.Gender,
+
+                        email =
+                            reservation.Passenger.Email,
+
+                        phone =
+                            reservation.Passenger.Phone
+                    }
         };
 
         return Ok(result);
     }
 
-    // POST: /api/tickets/book
-    [HttpPost("book")]
-    public async Task<IActionResult> BookTicket([FromBody] BookTicketRequest req)
+
+    // =====================================================
+    // PUT: /api/tickets/{pnr}/cancel
+    // =====================================================
+
+    [HttpPut("{pnr}/cancel")]
+    public async Task<IActionResult> CancelTicket(
+        string pnr,
+        [FromBody] CancelTicketRequest? request)
     {
-        // 1. Kiểm tra ghế còn trống không
-        var seat = await _db.Seats.FindAsync(req.SeatId);
-        if (seat == null)
-            return BadRequest("Seat not found");
-
-        if (seat.IsBooked)
-            return BadRequest("Seat already booked");
-
-        // 2. Tạo Reservation
-        var reservation = new Reservation
+        try
         {
-            PNR = GeneratePNR(),
-            ScheduleId = req.ScheduleId,
-            PassengerId = req.PassengerId,
-            JourneyDate = req.JourneyDate,
-            Status = "Confirmed",
-            BookedByUserId = req.UserId
-        };
+            var ticket = await _db.Tickets
+                .Include(t => t.Reservation)
+                .FirstOrDefaultAsync(t => t.PNR == pnr);
 
-        _db.Reservations.Add(reservation);
-        await _db.SaveChangesAsync();
+            if (ticket == null)
+            {
+                return NotFound(new
+                {
+                    message = $"Ticket with PNR '{pnr}' not found."
+                });
+            }
 
-        // 3. Tạo Ticket
-        var ticket = new Ticket
+            // Nếu đã hủy
+            if (ticket.PaymentStatus == "Cancelled")
+            {
+                return BadRequest(new
+                {
+                    message = "This ticket is already cancelled."
+                });
+            }
+
+            // Hủy ticket
+            ticket.PaymentStatus = "Cancelled";
+
+            // Hủy reservation liên quan
+            if (ticket.Reservation != null)
+            {
+                ticket.Reservation.Status = "Cancelled";
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Ticket cancelled successfully.",
+
+                pnr = ticket.PNR,
+
+                status = ticket.PaymentStatus,
+
+                reason = request?.Reason
+            });
+        }
+        catch (Exception ex)
         {
-            PNR = reservation.PNR,
-            ReservationId = reservation.Id,
-            SeatId = req.SeatId,
-            CoachClass = req.CoachClass,
-            Fare = req.Fare,
-            GSTAmount = req.Fare * 0.05m,
-            TotalAmount = req.Fare * 1.05m,
-            PaymentStatus = "Paid",
-            IssuedAt = DateTime.UtcNow
-        };
+            return StatusCode(500, new
+            {
+                message = "Failed to cancel ticket.",
 
-        _db.Tickets.Add(ticket);
-
-        // 4. Cập nhật trạng thái ghế
-        seat.IsBooked = true;
-        seat.BookedUntil = req.JourneyDate;
-
-        await _db.SaveChangesAsync();
-
-        return Ok(new { ticket.PNR, ticket.TotalAmount });
-    }
-
-    private static string GeneratePNR()
-    {
-        return "PNR" + Guid.NewGuid().ToString("N")[..7].ToUpper();
+                error = ex.Message
+            });
+        }
     }
 }

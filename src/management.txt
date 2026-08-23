@@ -1,0 +1,129 @@
+ADMIN:
+"Email": "admin@rail.com",
+"Password": "RailAdmin@2026!"
+USER:
+--Roles 
+INSERT INTO [dbo].[Roles] ([RoleName], [Description]) VALUES
+('Admin', 'Quản trị viên hệ thống'),
+('Staff', 'Nhân viên vận hành'),
+('User', 'Hành khách');
+--User
+INSERT INTO [dbo].[Users] ([Username], [PasswordHash], [FullName], [Email], [Role], [IsActive]) VALUES('staff01', 'hash_staff_123', 'Staff One', 'staff01@railadmin.com', 'Staff', 1),
+('nguyenvana', 'hash_user_123', 'Nguyễn Văn A', 'nguyenvana@gmail.com', 'User', 1),
+('tranthib', 'hash_user_456', 'Trần Thị B', 'tranthib@gmail.com', 'User', 1);
+--Staions
+INSERT INTO [dbo].[Stations] ([Code], [Name], [City], [State], [PlatformCount], [IsActive]) VALUES
+('HNI', N'Hà Nội', N'Hà Nội', N'Hà Nội', 6, 1),
+('SGN', N'Sài Gòn', N'Hồ Chí Minh', N'Hồ Chí Minh', 8, 1),
+('DNG', N'Đà Nẵng', N'Đà Nẵng', N'Đà Nẵng', 4, 1),
+('HPG', N'Hải Phòng', N'Hải Phòng', N'Hải Phòng', 3, 1),
+('HUE', N'Huế', N'Thừa Thiên Huế', N'Huế', 3, 1);
+--Trains
+INSERT INTO [dbo].[Trains] ([TrainNo], [TrainName], [TrainType], [TotalCoaches], [MaxSpeed], [IsActive]) VALUES
+('SE1', N'Thống Nhất', 'Express', 14, 120, 1),
+('SE2', N'Sài Gòn Express', 'Express', 14, 120, 1),
+('TN4', N'Bắc Nam Express', 'Superfast', 12, 140, 1),
+('HP1', N'Hải Phòng Express', 'Express', 10, 100, 1);
+--Coaches
+INSERT INTO Coaches
+(
+    TrainId,
+    CoachNo,
+    ClassType,
+    TotalSeats,
+    FareMultiplier
+)
+VALUES
+(1, 'A1', '1AC', 18, 2.0),
+(1, 'B1', '2AC', 36, 1.5),
+(1, 'C1', 'SL', 72, 1.0),
+
+(2, 'A1', '1AC', 18, 2.0),
+(2, 'B1', '2AC', 36, 1.5),
+
+(3, 'B1', '2AC', 36, 1.5),
+
+(4, 'C1', 'SL', 72, 1.0);
+--Seats
+-- SE1 Coach A1 (1AC): A1..A6
+INSERT INTO [dbo].[Seats] ([CoachId], [SeatNo], [IsBooked]) VALUES
+(1, 'A1', 0), (1, 'A2', 0), (1, 'A3', 1), (1, 'A4', 0), (1, 'A5', 1), (1, 'A6', 0);
+
+-- SE1 Coach B1 (2AC): B1..B6
+INSERT INTO [dbo].[Seats] ([CoachId], [SeatNo], [IsBooked]) VALUES
+(2, 'B1', 0), (2, 'B2', 0), (2, 'B3', 1), (2, 'B4', 0), (2, 'B5', 0), (2, 'B6', 1);
+
+-- SE2 Coach A1 (1AC): A1..A4
+INSERT INTO [dbo].[Seats] ([CoachId], [SeatNo], [IsBooked]) VALUES
+(4, 'A1', 0), (4, 'A2', 1), (4, 'A3', 0), (4, 'A4', 0);
+--Schedules
+INSERT INTO [dbo].[Schedules] ([TrainId], [FromStationId], [ToStationId], [DepartureTime], [ArrivalTime], [DistanceKm], [DaysOfWeek], [IsActive]) VALUES
+(1, 1, 2, '19:30:00', '04:45:00', 1726.00, 'MTWTFSS', 1), -- SE1: HNI -> SGN
+(2, 2, 1, '19:00:00', '04:30:00', 1726.00, 'MTWTFSS', 1), -- SE2: SGN -> HNI
+(3, 1, 3, '06:15:00', '15:40:00', 796.00, 'MWF', 1),      -- TN4: HNI -> DNG
+(4, 1, 4, '08:00:00', '11:20:00', 102.00, 'MTWTFSS', 1);  -- HP1: HNI -> HPG
+--ScheduleStops
+INSERT INTO [dbo].[ScheduleStops] ([ScheduleID], [StationID], [StopSequence], [DistanceFromOrigin], [ArrivalTime], [DepartureTime], [HaltDurationMinutes]) VALUES
+(1, 1, 1, 0, NULL, '19:30:00', 0),
+(1, 5, 2, 658, '23:10:00', '23:20:00', 10),
+(1, 3, 3, 1098, '02:00:00', '02:10:00', 10),
+(1, 2, 4, 1726, '04:45:00', NULL, 0);
+--Passengers
+INSERT INTO [dbo].[Passengers] ([FullName], [Age], [Gender], [IDProofType], [IDProofNo], [Email], [Phone]) VALUES
+(N'Nguyễn Văn A', 30, 'Nam', 'CMND', '123456789', 'nguyenvana@gmail.com', '0909123456'),
+(N'Trần Thị B', 25, N'Nữ', 'CMND', '987654321', 'tranthib@gmail.com', '0909765432'),
+(N'Lê Hoàng Nam', 40, 'Nam', 'Passport', 'P1234567', 'lehoangnam@gmail.com', '0911223344'),
+(N'Phạm Thu Hà', 35, N'Nữ', 'CMND', '555444333', 'phamthuha@gmail.com', '0922334455');
+--Reservations
+INSERT INTO dbo.Reservations
+(
+    PNR,
+    ScheduleId,
+    PassengerId,
+    JourneyDate,
+    BookingDate,
+    Status,
+    BookedByUserId
+)
+VALUES
+('PNR7A8B9C', 1, 1, '2026-08-30', SYSUTCDATETIME(), 'Confirmed', 2),
+('PNR2D3E4F', 1, 2, '2026-08-30', SYSUTCDATETIME(), 'Waiting', 2),
+('PNR5G6H7I', 3, 3, '2026-08-29', SYSUTCDATETIME(), 'Confirmed', 2),
+('PNR8J9K0L', 2, 4, '2026-08-28', SYSUTCDATETIME(), 'Cancelled', 2);--Tickets
+INSERT INTO [dbo].[Tickets] ([PNR], [ReservationId], [SeatId], [CoachClass], [Fare], [GSTAmount], [TotalAmount], [PaymentStatus], [IssuedAt]) VALUES
+('PNR7A8B9C', 1, 3, '1AC', 1450000, 72500, 1522500, 'Paid', sysutcdatetime()),
+('PNR5G6H7I', 3, 9, '2AC', 980000, 49000, 1029000, 'Paid', sysutcdatetime()),
+('PNR8J9K0L', 4, 13, 'SL', 250000, 12500, 262500, 'Refunded', sysutcdatetime());
+--CancellationRules
+INSERT INTO [dbo].[CancellationRules] ([HoursBeforeDeparture], [CancellationFeeType], [FeeValue], [MinFee], [CoachType]) VALUES
+(48, 'Percent', 10.00, 50.00, '1AC'),
+(24, 'Percent', 25.00, 100.00, '2AC'),
+(12, 'Percent', 50.00, 200.00, 'SL');
+--FareRules
+INSERT INTO [dbo].[FareRules] ([ClassType], [MinDistanceKm], [MaxDistanceKm], [BaseFare], [PerKmRate], [GSTPercent], [EffectiveFrom], [IsActive]) VALUES
+('1AC', 0, 500, 500.00, 2.50, 5.00, CONVERT(date, sysutcdatetime()), 1),
+('2AC', 0, 500, 400.00, 2.00, 5.00, CONVERT(date, sysutcdatetime()), 1),
+('SL', 0, 500, 250.00, 1.20, 5.00, CONVERT(date, sysutcdatetime()), 1);
+--PaymenMethods
+INSERT INTO [dbo].[PaymentMethods] ([Name], [Description], [IsActive]) VALUES
+('VNPay', 'Cổng thanh toán VNPay', 1),
+('Momo', 'Ví điện tử Momo', 1),
+('Cash', 'Thanh toán tiền mặt tại quầy', 1);
+--FoodServices
+INSERT INTO [dbo].[FoodServices] ([ServiceName], [MealType], [Price], [IsAvailable]) VALUES
+(N'Bữa sáng', 'Breakfast', 50000, 1),
+(N'Bữa trưa', 'Lunch', 80000, 1),
+(N'Bữa tối', 'Dinner', 80000, 1),
+(N'Đồ uống', 'Beverage', 25000, 1);
+--System Configs
+INSERT INTO [dbo].[SystemConfigs] ([ConfigKey], [ConfigValue], [Description], [UpdatedAt]) VALUES
+('SiteName', 'RailAdmin', 'Tên hệ thống', sysutcdatetime()),
+('SupportEmail', 'support@railadmin.com', 'Email hỗ trợ', sysutcdatetime()),
+('MaxBookingsPerUser', '10', 'Số vé tối đa mỗi user', sysutcdatetime());
+--Daily Stats( minh họa)
+INSERT INTO [dbo].[DailyStats] ([StatDate], [TotalTicketsSold], [TotalRevenue], [TotalCancellations], [OccupancyRate]) VALUES
+(CONVERT(date, sysutcdatetime()), 3, 2814000, 1, 72.50);
+--Waitlists
+INSERT INTO [dbo].[WaitLists] ([PNR], [ScheduleId], [PassengerId], [RequestedClass], [Position], [Status], [CreatedAt]) VALUES
+('PNRW1X2Y3', 1, 2, '2AC', 1, 'WAITING', sysutcdatetime()),
+('PNRW4Z5A6', 2, 3, '1AC', 2, 'WAITING', sysutcdatetime());

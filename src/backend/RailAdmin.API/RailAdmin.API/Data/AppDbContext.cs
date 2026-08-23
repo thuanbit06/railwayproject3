@@ -16,7 +16,6 @@ public class AppDbContext : DbContext
     public DbSet<Train> Trains => Set<Train>();
     public DbSet<Station> Stations { get; set; }
     public DbSet<FareRule> FareRules { get; set; }
-    public DbSet<Booking> Bookings { get; set; }
     public DbSet<CancellationRule> CancellationRules { get; set; }
     public DbSet<Refund> Refunds { get; set; }
     public DbSet<Role> Roles { get; set; }
@@ -30,6 +29,7 @@ public class AppDbContext : DbContext
     public DbSet<Coach> Coaches { get; set; }
     public DbSet<Reservation> Reservations { get; set; }
     public DbSet<Seat> Seats { get; set; }
+    public DbSet<SupportTicket> SupportTickets { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

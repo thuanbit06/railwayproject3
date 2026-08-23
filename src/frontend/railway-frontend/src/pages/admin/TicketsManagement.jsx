@@ -28,12 +28,15 @@ const TicketsManagement = () => {
     fetchTickets();
   }, []);
 
-  const handleCancel = async (id) => {
+  const handleCancel = async (pnr) => {
     if (!window.confirm("Cancel this ticket?")) return;
+
     try {
-      await cancelTicket(id);
+      await cancelTicket(pnr, "Cancelled by admin");
+
       fetchTickets();
     } catch (e) {
+      console.error(e);
       alert("Failed to cancel ticket.");
     }
   };
@@ -99,7 +102,7 @@ const TicketsManagement = () => {
                       </button>
                       {t.status !== "Cancelled" && (
                         <button
-                          onClick={() => handleCancel(t.id)}
+                          onClick={() => handleCancel(t.pnr)}
                           className="text-gray-400 hover:text-red-600"
                           title="Cancel">
                           <Trash2 size={14} />

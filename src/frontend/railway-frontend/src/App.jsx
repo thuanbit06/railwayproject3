@@ -27,6 +27,9 @@ import MyTickets from "./pages/user/MyTickets";
 import TicketDetails from "./pages/user/TicketDetails";
 import CancelTicket from "./pages/user/CancelTicket";
 import Settings from "./pages/user/Settings";
+import TrainScheduleDetail from "./pages/user/TrainScheduleDetail";
+import PnrStatus from "./pages/user/PnrStatus";
+import Support from "./pages/user/Support";
 
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -56,9 +59,15 @@ function App() {
                 <Route path="/trains" element={<TrainResults />} />
                 <Route path="/trains/:id" element={<TrainDetails />} />
                 <Route path="/book-ticket" element={<BookTicket />} />
+                <Route
+                  path="/schedule/:scheduleId?"
+                  element={<TrainScheduleDetail />}
+                />
+                <Route path="support" element={<Support />} />
                 <Route path="/payment" element={<Payment />} />
                 <Route path="/success" element={<BookingSuccess />} />
                 <Route path="/my-tickets" element={<MyTickets />} />
+                <Route path="/pnr" element={<PnrStatus />} />
                 <Route path="/ticket/:pnr" element={<TicketDetails />} />
                 <Route path="/cancel/:pnr" element={<CancelTicket />} />
                 <Route path="/settings" element={<Settings />} />

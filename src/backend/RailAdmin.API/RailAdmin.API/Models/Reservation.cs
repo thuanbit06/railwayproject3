@@ -14,13 +14,10 @@ public class Reservation
     [MaxLength(20)]
     public string PNR { get; set; } = string.Empty;   // ✅ DB: PNR (Unique)
 
-    [Required]
     public int ScheduleId { get; set; }   // ✅ DB: ScheduleId (FK → Schedules.Id)
 
-    [Required]
     public int PassengerId { get; set; }   // ✅ DB: PassengerId (FK → Passengers.Id)
 
-    [Required]
     public DateTime JourneyDate { get; set; }   // ✅ DB: JourneyDate (DATE)
 
     [Required]
@@ -30,7 +27,6 @@ public class Reservation
     [MaxLength(20)]
     public string Status { get; set; } = "Confirmed";   // ✅ DB: Status (Default: 'Confirmed')
 
-    [Required]
     public int BookedByUserId { get; set; }   // ✅ DB: BookedByUserId (FK → Users.Id)
 
     // ===============================

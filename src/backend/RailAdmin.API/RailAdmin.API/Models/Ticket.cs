@@ -42,4 +42,5 @@ public class Ticket
 
     [ForeignKey("SeatId")]
     public virtual Seat? Seat { get; set; }
+    
 }
