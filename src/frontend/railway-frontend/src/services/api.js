@@ -1,16 +1,22 @@
 import axios from "axios";
 
+// ✅ Tạo instance Axios riêng
 const api = axios.create({
-  baseURL: "http://localhost:5159/api", // ⚠️ Đổi theo port .NET 8 của bạn
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 15000, // 15s timeout
 });
 
-// ✅ Tự động gắn JWT token vào mọi request
+/*
+========================================
+INTERCEPTOR: GẮN TOKEN JWT VÀO MỖI REQUEST
+========================================
+*/
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("raillink_token");
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -19,14 +25,25 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// ✅ Tự động logout nếu token hết hạn (401)
+/*
+========================================
+INTERCEPTOR: XỬ LÝ LỖI TỰ ĐỘNG
+========================================
+*/
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("raillink_token");
-      localStorage.removeItem("raillink_user");
-      window.location.href = "/login";
+    // Nếu token hết hạn hoặc chưa đăng nhập (401)
+    const isAuthRequest = /\/auth\/(login|register)$/.test(
+      error.config?.url || "",
+    );
+
+    if (error.response?.status === 401 && !isAuthRequest) {
+      console.warn("Token expired or unauthorized. Logging out...");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      delete api.defaults.headers.common["Authorization"];
+      window.location.href = "/login"; // Force logout
     }
     return Promise.reject(error);
   },

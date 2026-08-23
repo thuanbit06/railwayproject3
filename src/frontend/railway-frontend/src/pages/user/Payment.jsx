@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { CreditCard, Lock, ArrowRight, AlertCircle } from "lucide-react";
+import { CreditCard, Lock, ArrowLeft, AlertCircle } from "lucide-react";
 import { BookingContext } from "../../context/BookingContext"; // 1. Lấy dữ liệu đặt vé
 import { createBooking } from "../../services/bookingService"; // 2. Gọi API đặt vé
 
@@ -68,6 +68,21 @@ const Payment = () => {
   return (
     <div className="min-h-screen bg-[#F5F8FC] p-6">
       <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-xl p-8">
+        <button
+          onClick={() => nav(-1)}
+          className="
+          inline-flex
+          items-center
+          gap-2
+          text-sm
+          font-semibold
+          text-[#003A8C]
+          hover:text-[#1677FF]
+          transition
+        ">
+          <ArrowLeft size={18} />
+          Back
+        </button>
         <h1 className="text-2xl font-bold mb-2">Payment Gateway</h1>
         <p className="text-sm text-gray-500 mb-6">
           Complete your purchase securely.

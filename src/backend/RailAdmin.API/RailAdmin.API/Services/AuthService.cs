@@ -20,6 +20,9 @@ public class AuthService : IAuthService
         _config = config;
     }
 
+    // =========================
+    // REGISTER
+    // =========================
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest req)
     {
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
@@ -29,13 +32,16 @@ public class AuthService : IAuthService
         {
             Name = req.Name,
             Email = req.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-            Role = req.Email.Contains("admin")
-                ? "Admin"
-                : "User"
+
+            PasswordHash =
+                BCrypt.Net.BCrypt.HashPassword(req.Password),
+
+            // User đăng ký luôn là User
+            Role = "User"
         };
 
         _db.Users.Add(user);
+
         await _db.SaveChangesAsync();
 
         return new AuthResponse
@@ -48,18 +54,24 @@ public class AuthService : IAuthService
         };
     }
 
+    // =========================
+    // LOGIN
+    // =========================
     public async Task<AuthResponse?> LoginAsync(LoginRequest req)
     {
         var user = await _db.Users
             .FirstOrDefaultAsync(u => u.Email == req.Email);
 
-        if (user == null ||
-            !BCrypt.Net.BCrypt.Verify(
-                req.Password,
-                user.PasswordHash))
-        {
+        if (user == null)
             return null;
-        }
+
+        var passwordValid =
+            BCrypt.Net.BCrypt.Verify(
+                req.Password,
+                user.PasswordHash);
+
+        if (!passwordValid)
+            return null;
 
         return new AuthResponse
         {
@@ -71,13 +83,16 @@ public class AuthService : IAuthService
         };
     }
 
+    // =========================
+    // JWT
+    // =========================
     private string GenerateJwtToken(User user)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(
                 _config["Jwt:Key"]!));
 
-        var creds = new SigningCredentials(
+        var credentials = new SigningCredentials(
             key,
             SecurityAlgorithms.HmacSha256);
 
@@ -85,15 +100,18 @@ public class AuthService : IAuthService
         {
             new Claim(
                 ClaimTypes.NameIdentifier,
-                user.Id.ToString()),
+                user.Id.ToString()
+            ),
 
             new Claim(
                 ClaimTypes.Email,
-                user.Email),
+                user.Email
+            ),
 
             new Claim(
                 ClaimTypes.Role,
-                user.Role)
+                user.Role
+            )
         };
 
         var token = new JwtSecurityToken(
@@ -101,21 +119,24 @@ public class AuthService : IAuthService
             audience: _config["Jwt:Audience"],
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
-            signingCredentials: creds
+            signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler()
             .WriteToken(token);
     }
 
-    private UserResponse MapToDto(User u)
+    // =========================
+    // USER DTO
+    // =========================
+    private UserResponse MapToDto(User user)
     {
         return new UserResponse
         {
-            Id = u.Id,
-            Name = u.Name,
-            Email = u.Email,
-            Role = u.Role
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Role = user.Role
         };
     }
 }

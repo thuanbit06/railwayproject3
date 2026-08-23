@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBooking } from "../../context/BookingContext";
-import { ArrowRight, User, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, User, Plus, Trash2 } from "lucide-react";
 
 const BookTicket = () => {
   const nav = useNavigate();
@@ -51,6 +51,21 @@ const BookTicket = () => {
   return (
     <div className="min-h-screen bg-[#F5F8FC] p-6">
       <div className="max-w-3xl mx-auto space-y-6">
+        <button
+          onClick={() => nav(-1)}
+          className="
+          inline-flex
+          items-center
+          gap-2
+          text-sm
+          font-semibold
+          text-[#003A8C]
+          hover:text-[#1677FF]
+          transition
+        ">
+          <ArrowLeft size={18} />
+          Back
+        </button>
         {/* Train Summary */}
         <div className="bg-white rounded-2xl shadow p-5">
           <h2 className="font-bold text-lg mb-2">{train.name}</h2>
