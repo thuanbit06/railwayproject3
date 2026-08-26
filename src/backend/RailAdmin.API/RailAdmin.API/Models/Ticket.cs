@@ -3,44 +3,44 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RailAdmin.API.Models;
 
+// =========================================================
+// 11. TICKET - Vé của từng hành khách trong 1 Booking
+// =========================================================
+[Table("Tickets")]
 public class Ticket
 {
     [Key]
-    public int Id { get; set; }   // ✅ DB: Id (PK)
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+
+    [Required, MaxLength(10)]
+    public string PNR { get; set; } = string.Empty;
+
+    public int? SeatId { get; set; }
+
+    [Required, MaxLength(100)]
+    public string PassengerName { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(20)]
-    public string PNR { get; set; } = string.Empty;   // ✅ DB: PNR (Unique)
+    public int Age { get; set; }
+
+    [Required, MaxLength(10)]
+    public string Gender { get; set; } = string.Empty;
 
     [Required]
-    public int ReservationId { get; set; }   // ✅ DB: ReservationId
+    [Column(TypeName = "decimal(12,2)")]
+    public decimal Fare { get; set; }
 
-    [Required]
-    public int SeatId { get; set; }   // ✅ DB: SeatId
+    [Required, MaxLength(20)]
+    public string Status { get; set; } = "Confirmed"; // Confirmed / Waiting / Cancelled
 
-    [Required]
-    [MaxLength(20)]
-    public string CoachClass { get; set; } = string.Empty;   // ✅ DB: CoachClass
+    public string? CancelReason { get; set; }
 
-    [Column(TypeName = "decimal(10,2)")]
-    public decimal Fare { get; set; }   // ✅ DB: Fare
+    public DateTime? CancelledAt { get; set; }
 
-    [Column(TypeName = "decimal(10,2)")]
-    public decimal GSTAmount { get; set; } = 0;   // ✅ DB: GSTAmount
+    [ForeignKey(nameof(PNR))]
+    public virtual Booking? Booking { get; set; }
 
-    [Column(TypeName = "decimal(10,2)")]
-    public decimal TotalAmount { get; set; }   // ✅ DB: TotalAmount
-
-    [MaxLength(20)]
-    public string PaymentStatus { get; set; } = "Paid";   // ✅ DB: PaymentStatus
-
-    public DateTime IssuedAt { get; set; } = DateTime.UtcNow;   // ✅ DB: IssuedAt
-
-    // Navigation Properties
-    [ForeignKey("ReservationId")]
-    public virtual Reservation? Reservation { get; set; }
-
-    [ForeignKey("SeatId")]
+    [ForeignKey(nameof(SeatId))]
     public virtual Seat? Seat { get; set; }
-    
 }

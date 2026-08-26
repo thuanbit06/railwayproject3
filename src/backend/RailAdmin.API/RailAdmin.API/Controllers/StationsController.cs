@@ -1,64 +1,66 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.Models;
-using static System.Collections.Specialized.BitVector32;
+using RailAdmin.API.DTOs.Request.Station;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
-[Route("api/admin/stations")]
+[Route("api/stations")]
 [Authorize(Roles = "Admin")]
 public class StationsController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly IStationService _service;
 
-    public StationsController(AppDbContext db)
+    public StationsController(IStationService service)
     {
-        _db = db;
+        _service = service;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.Stations.ToListAsync());
+        var result = await _service.GetAllAsync();
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var result = await _service.GetByIdAsync(id);
+        if (result == null)
+            return NotFound(new { message = $"Station with ID {id} not found." });
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(Station s)
+    public async Task<IActionResult> Create([FromBody] StationCreateRequest dto)
     {
-        _db.Stations.Add(s);
-        await _db.SaveChangesAsync();
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        return Ok(s);
+        var created = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, Station s)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] StationUpdateRequest dto)
     {
-        if (id != s.Id)
-            return BadRequest();
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        _db.Entry(s).State = EntityState.Modified;
-
-        await _db.SaveChangesAsync();
-
+        var success = await _service.UpdateAsync(id, dto);
+        if (!success)
+            return NotFound(new { message = $"Station with ID {id} not found." });
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var s = await _db.Stations.FindAsync(id);
-
-        if (s == null)
-            return NotFound();
-
-        _db.Stations.Remove(s);
-
-        await _db.SaveChangesAsync();
-
+        var success = await _service.DeleteAsync(id);
+        if (!success)
+            return NotFound(new { message = $"Station with ID {id} not found." });
         return NoContent();
     }
 }

@@ -8,7 +8,6 @@ using RailAdmin.API.Services;
 using RailAdmin.API.Services.IService;
 using System.Text;
 using RailAdmin.API.Repository;
-using RailAdmin.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -128,14 +127,37 @@ builder.Services.AddCors(options =>
 
 
 
-// Repository
-builder.Services.AddScoped<IPassengerRepository, PassengerRepository>();
+// Repositories
+builder.Services.AddScoped<IStationRepository, StationRepository>();
+builder.Services.AddScoped<ITrainRepository, TrainRepository>();
+builder.Services.AddScoped<ITrainCoachRepository, TrainCoachRepository>();
+builder.Services.AddScoped<ISeatRepository, SeatRepository>();
+builder.Services.AddScoped<ITripRepository, TripRepository>();
+builder.Services.AddScoped<ITripStopRepository, TripStopRepository>();
+builder.Services.AddScoped<IFareRuleRepository, FareRuleRepository>();
+builder.Services.AddScoped<ICancellationRuleRepository, CancellationRuleRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IBookingRepository, BookingRepository>();
+builder.Services.AddScoped<ITicketRepository, TicketRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IRefundRepository, RefundRepository>();
+builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
 
-
-// Service
-builder.Services.AddScoped<IPassengerService, PassengerService>();
-
-
+// Services
+builder.Services.AddScoped<IStationService, StationService>();
+builder.Services.AddScoped<ITrainService, TrainService>();
+builder.Services.AddScoped<ITrainCoachService, TrainCoachService>();
+builder.Services.AddScoped<ISeatService, SeatService>();
+builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<ITripStopService, TripStopService>();
+builder.Services.AddScoped<IFareRuleService, FareRuleService>();
+builder.Services.AddScoped<ICancellationRuleService, CancellationRuleService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
+builder.Services.AddScoped<IWaitListService, WaitListService>();
 
 var app = builder.Build();
 

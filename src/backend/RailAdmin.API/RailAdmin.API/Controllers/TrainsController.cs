@@ -1,243 +1,66 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.DTOs;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using RailAdmin.API.DTOs.Request.Train;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/trains")]
+[Authorize(Roles = "Admin")]
 public class TrainsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly ITrainService _service;
 
-    public TrainsController(AppDbContext context)
+    public TrainsController(ITrainService service)
     {
-        _context = context;
+        _service = service;
     }
 
-
-    // ============================================================
-    // GET: api/trains
-    // Lấy toàn bộ danh sách chuyến tàu / lịch trình
-    // ============================================================
     [HttpGet]
-    public async Task<IActionResult> GetAllTrains()
+    public async Task<IActionResult> GetAll()
     {
-        var schedules = await _context.Schedules
-            .Include(s => s.Train)
-            .Include(s => s.FromStation)
-            .Include(s => s.ToStation)
-            .Where(s => s.IsActive)
-            .OrderBy(s => s.Train!.TrainNo)
-            .Select(s => new TrainDto
-            {
-                Id = s.Id,
-                TrainNo = s.Train != null
-                    ? s.Train.TrainNo
-                    : s.TrainId.ToString(),
-
-                TrainName = s.Train != null
-                    ? s.Train.TrainName
-                    : string.Empty,
-
-                FromStation = s.FromStation != null
-                    ? s.FromStation.Name
-                    : string.Empty,
-
-                ToStation = s.ToStation != null
-                    ? s.ToStation.Name
-                    : string.Empty,
-
-                DepartureTime = s.DepartureTime.ToString(@"hh\:mm"),
-
-                ArrivalTime = s.ArrivalTime.ToString(@"hh\:mm"),
-
-                Status = s.IsActive
-                    ? "Scheduled"
-                    : "Inactive"
-            })
-            .ToListAsync();
-
-        return Ok(schedules);
+        var result = await _service.GetAllAsync();
+        return Ok(result);
     }
 
-
-    // ============================================================
-    // GET: api/trains/search
-    // Ví dụ:
-    // /api/trains/search?from=Hà Nội&to=Đà Nẵng&date=2026-08-25
-    // ============================================================
-    [HttpGet("search")]
-    public async Task<IActionResult> SearchTrains(
-        [FromQuery] string from,
-        [FromQuery] string to,
-        [FromQuery] DateTime date)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        if (string.IsNullOrWhiteSpace(from))
-        {
-            return BadRequest(new
-            {
-                message = "Departure station is required."
-            });
-        }
-
-        if (string.IsNullOrWhiteSpace(to))
-        {
-            return BadRequest(new
-            {
-                message = "Destination station is required."
-            });
-        }
-
-        var rawSchedules = await _context.Schedules
-            .Include(s => s.Train)
-            .Include(s => s.FromStation)
-            .Include(s => s.ToStation)
-            .Where(s =>
-                s.IsActive &&
-
-                s.FromStation != null &&
-                s.FromStation.Name.Contains(from) &&
-
-                s.ToStation != null &&
-                s.ToStation.Name.Contains(to)
-            )
-            .ToListAsync();
-
-
-        // Lấy thứ trong tuần của ngày được chọn
-        var dayOfWeek = (int)date.DayOfWeek;
-
-
-        // Lấy danh sách TrainId có hoạt động trong ngày đó
-        var operatingTrainIds = await _context.TrainOperatingDays
-            .Where(x =>
-    x.IsActive &&
-    x.DayOfWeek == dayOfWeek
-)
-            .Select(x => x.TrainID)
-            .Distinct()
-            .ToListAsync();
-
-
-        // Chỉ lấy những tàu hoạt động trong ngày đã chọn
-        var schedules = rawSchedules
-            .Where(s =>
-                operatingTrainIds.Contains(s.TrainId)
-            )
-            .Select(s => new TrainDto
-            {
-                Id = s.Id,
-
-                TrainNo = s.Train?.TrainNo
-                    ?? s.TrainId.ToString(),
-
-                TrainName = s.Train?.TrainName
-                    ?? string.Empty,
-
-                FromStation = s.FromStation?.Name
-                    ?? string.Empty,
-
-                ToStation = s.ToStation?.Name
-                    ?? string.Empty,
-
-                DepartureTime =
-                    s.DepartureTime.ToString(@"hh\:mm"),
-
-                ArrivalTime =
-                    s.ArrivalTime.ToString(@"hh\:mm"),
-
-                Status = "Scheduled"
-            })
-            .ToList();
-
-        return Ok(schedules);
+        var result = await _service.GetByIdAsync(id);
+        if (result == null)
+            return NotFound(new { message = $"Train with ID {id} not found." });
+        return Ok(result);
     }
 
-
-    // ============================================================
-    // GET: api/trains/5
-    // Lấy chi tiết một Schedule
-    // ============================================================
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetTrain(int id)
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] TrainCreateRequest dto)
     {
-        var schedule = await _context.Schedules
-            .Include(s => s.Train)
-            .Include(s => s.FromStation)
-            .Include(s => s.ToStation)
-            .Where(s => s.Id == id)
-            .Select(s => new TrainDto
-            {
-                Id = s.Id,
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-                TrainNo = s.Train != null
-                    ? s.Train.TrainNo
-                    : s.TrainId.ToString(),
-
-                TrainName = s.Train != null
-                    ? s.Train.TrainName
-                    : string.Empty,
-
-                FromStation = s.FromStation != null
-                    ? s.FromStation.Name
-                    : string.Empty,
-
-                ToStation = s.ToStation != null
-                    ? s.ToStation.Name
-                    : string.Empty,
-
-                DepartureTime =
-                    s.DepartureTime.ToString(@"hh\:mm"),
-
-                ArrivalTime =
-                    s.ArrivalTime.ToString(@"hh\:mm"),
-
-                Status = s.IsActive
-                    ? "Scheduled"
-                    : "Inactive"
-            })
-            .FirstOrDefaultAsync();
-
-        if (schedule == null)
-        {
-            return NotFound(new
-            {
-                message = "Train schedule not found."
-            });
-        }
-
-        return Ok(schedule);
+        var created = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-
-    // ============================================================
-    // GET: api/trains/5/operating-days
-    // Lấy các ngày hoạt động của tàu
-    // ============================================================
-    [HttpGet("{trainId}/operating-days")]
-    public async Task<IActionResult> GetOperatingDays(int trainId)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] TrainUpdateRequest dto)
     {
-        var trainExists = await _context.Trains
-            .AnyAsync(t => t.Id == trainId);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        if (!trainExists)
-        {
-            return NotFound(new
-            {
-                message = "Train not found."
-            });
-        }
+        var success = await _service.UpdateAsync(id, dto);
+        if (!success)
+            return NotFound(new { message = $"Train with ID {id} not found." });
+        return NoContent();
+    }
 
-        var days = await _context.TrainOperatingDays
-            .Where(x =>
-                x.TrainID == trainId &&
-                x.IsActive
-            )
-            .Select(x => x.DayOfWeek)
-            .ToListAsync();
-
-        return Ok(days);
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var success = await _service.DeleteAsync(id);
+        if (!success)
+            return NotFound(new { message = $"Train with ID {id} not found." });
+        return NoContent();
     }
 }

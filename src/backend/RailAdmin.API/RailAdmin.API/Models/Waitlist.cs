@@ -3,42 +3,38 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RailAdmin.API.Models;
 
+// =========================================================
+// 14. WAITLIST - Danh sách chờ khi hết chỗ
+// =========================================================
+[Table("WaitLists")]
 public class WaitList
 {
     [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
     [Required]
-    [MaxLength(20)]
-    public string PNR { get; set; } = string.Empty;
+    public int TripId { get; set; }
 
     [Required]
-    public int ScheduleId { get; set; }
+    public int TicketId { get; set; }
 
-    [Required]
-    public int PassengerId { get; set; }
-
-    [Required]
     [MaxLength(20)]
     public string RequestedClass { get; set; } = "Economy";
 
     [Required]
     public int Position { get; set; }
 
-    [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "WAITING";
+    public string Status { get; set; } = "WAITING"; // WAITING / CONFIRMED / EXPIRED
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? ExpiresAt { get; set; }
 
-    public DateTime? NotifiedAt { get; set; }
+    [ForeignKey(nameof(TripId))]
+    public virtual Trip? Trip { get; set; }
 
-    // ✅ Navigation Properties (RẤT QUAN TRỌNG)
-    [ForeignKey("ScheduleId")]
-    public virtual Schedule? Schedule { get; set; }
-
-    [ForeignKey("PassengerId")]
-    public virtual Passenger? Passenger { get; set; }
+    [ForeignKey(nameof(TicketId))]
+    public virtual Ticket? Ticket { get; set; }
 }

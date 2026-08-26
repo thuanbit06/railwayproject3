@@ -1,0 +1,16 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace RailAdmin.API.DTOs.Request.Train;
+
+public class TrainUpdateRequest
+{
+    [Required, MaxLength(100)]
+    public string TrainName { get; set; } = string.Empty;
+
+    [Required, MaxLength(20)]
+    public string TrainType { get; set; } = string.Empty;
+
+    public int TotalCoaches { get; set; }
+
+    public bool IsActive { get; set; }
+}
