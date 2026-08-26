@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RailAdmin.API.Data;
-using RailAdmin.API.Repository.IRepository;
-using RailAdmin.API.Services;
-using RailAdmin.API.Services.IService;
-using System.Text;
 using RailAdmin.API.Repository;
+using RailAdmin.API.Repository.IRepository;
+using RailAdmin.API.Services.IRepository;
+using RailAdmin.API.Services.IService;
+using RailAdmin.API.Services.Repository;
+using RailAdmin.API.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -125,6 +127,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddScoped<
+    IAdminDashboardService,
+    AdminDashboardService>();
+
 
 
 // Repositories
@@ -142,6 +148,8 @@ builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+
 
 // Services
 builder.Services.AddScoped<IStationService, StationService>();
@@ -158,6 +166,8 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IWaitListService, WaitListService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
 
 var app = builder.Build();
 

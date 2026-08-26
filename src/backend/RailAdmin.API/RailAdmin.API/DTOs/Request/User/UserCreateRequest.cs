@@ -1,19 +1,19 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// File: DTOs/UserCreateRequest.cs
+using System.ComponentModel.DataAnnotations;
 
-namespace RailAdmin.API.DTOs.Request.User
+namespace RailAdmin.API.DTOs;
+
+public class UserCreateRequest
 {
-    public class UserCreateRequest
-    {
-        [Required, MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Tên không được để trống.")]
+    [MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
 
-        [Required, EmailAddress, MaxLength(100)]
-        public string Email { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Email không được để trống.")]
+    [EmailAddress(ErrorMessage = "Email không đúng định dạng.")]
+    [MaxLength(100)]
+    public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(6)]
-        public string Password { get; set; } = string.Empty; // sẽ được hash ở service, không lưu trực tiếp
-
-        [MaxLength(20)]
-        public string Role { get; set; } = "User";
-    }
+    [Required(ErrorMessage = "Role không được để trống.")]
+    public string Role { get; set; } = "User"; // Admin / User / Staff
 }
