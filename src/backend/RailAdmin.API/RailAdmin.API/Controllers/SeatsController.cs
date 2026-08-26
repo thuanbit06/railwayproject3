@@ -1,53 +1,46 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using RailAdmin.API.DTOs.Request.Seat;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
 [Route("api/seats")]
+[Authorize(Roles = "Admin")]
 public class SeatsController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public SeatsController(AppDbContext db) => _db = db;
+    private readonly ISeatService _service;
+    public SeatsController(ISeatService service) { _service = service; }
 
-    // GET: /api/seats/available?scheduleId=1&journeyDate=2026-08-25
-    [HttpGet("available")]
-    public async Task<IActionResult> GetAvailableSeats(
-        [FromQuery] int scheduleId,
-        [FromQuery] DateTime journeyDate)
+    [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        // 1. Lấy TrainId từ Schedule
-        var schedule = await _db.Schedules
-            .FirstOrDefaultAsync(s => s.Id == scheduleId);
-
-        if (schedule == null)
-            return NotFound("Schedule not found");
-
-        // 2. Lấy danh sách ghế đã được đặt trong ngày đó
-        var bookedSeatIds = await _db.Tickets
-            .Where(t => t.Reservation != null &&
-                        t.Reservation.ScheduleId == scheduleId &&
-                        t.Reservation.JourneyDate.Date == journeyDate.Date)
-            .Select(t => t.SeatId)
-            .ToListAsync();
-
-        // 3. Lấy ghế còn trống
-        var availableSeats = await _db.Seats
-            .Include(seat => seat.Coach)
-            .Where(seat => seat.Coach != null &&
-                           seat.Coach.TrainId == schedule.TrainId &&
-                           !bookedSeatIds.Contains(seat.Id))
-            .Select(seat => new
-            {
-                seat.Id,
-                seat.SeatNo,
-                seat.CoachId,
-                ClassType = seat.Coach != null ? seat.Coach.ClassType : string.Empty,
-                CoachNo = seat.Coach != null ? seat.Coach.CoachNo : string.Empty
-            })
-            .ToListAsync();
-
-        return Ok(availableSeats);
+        var r = await _service.GetByIdAsync(id);
+        if (r == null) return NotFound(new { message = $"Seat {id} not found." });
+        return Ok(r);
+    }
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] SeatCreateRequest dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var c = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = c.Id }, c);
+    }
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] SeatUpdateRequest dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var ok = await _service.UpdateAsync(id, dto);
+        if (!ok) return NotFound(new { message = $"Seat {id} not found." });
+        return NoContent();
+    }
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var ok = await _service.DeleteAsync(id);
+        if (!ok) return NotFound(new { message = $"Seat {id} not found." });
+        return NoContent();
     }
 }

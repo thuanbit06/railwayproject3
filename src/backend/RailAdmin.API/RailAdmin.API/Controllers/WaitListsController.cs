@@ -1,58 +1,46 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.Models;
+﻿//using Microsoft.AspNetCore.Authorization;
+//using Microsoft.AspNetCore.Mvc;
+//using RailAdmin.API.DTOs.Request.Waitlist;
+//using RailAdmin.API.Services.IService;
 
-namespace RailAdmin.API.Controllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class WaitListsController : ControllerBase
-    {
-        private readonly AppDbContext _db;
+//namespace RailAdmin.API.Controllers;
 
-        public WaitListsController(AppDbContext db)
-        {
-            _db = db;
-        }
+//[ApiController]
+//[Route("api/waitlists")]
+//[Authorize(Roles = "Admin,Staff")]
+//public class WaitListsController : ControllerBase
+//{
+//    private readonly IWaitListService _service;
+//    public WaitListsController(IWaitListService service) { _service = service; }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<WaitList>>> GetAll()
-            => await _db.WaitLists.ToListAsync();
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<WaitList>> GetById(int id)
-        {
-            var item = await _db.WaitLists.FindAsync(id);
-            return item == null ? NotFound() : Ok(item);
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<WaitList>> Create(WaitList dto)
-        {
-            _db.WaitLists.Add(dto);
-            await _db.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, WaitList dto)
-        {
-            if (id != dto.Id) return BadRequest();
-            _db.Entry(dto).State = EntityState.Modified;
-            await _db.SaveChangesAsync();
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var item = await _db.WaitLists.FindAsync(id);
-            if (item == null) return NotFound();
-            _db.WaitLists.Remove(item);
-            await _db.SaveChangesAsync();
-            return NoContent();
-        }
-    }
-}
+//    [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
+//    [HttpGet("{id:int}")]
+//    public async Task<IActionResult> GetById(int id)
+//    {
+//        var r = await _service.GetByIdAsync(id);
+//        if (r == null) return NotFound(new { message = $"WaitList {id} not found." });
+//        return Ok(r);
+//    }
+//    [HttpPost]
+//    public async Task<IActionResult> Create([FromBody] WaitListCreateRequest dto)
+//    {
+//        if (!ModelState.IsValid) return BadRequest(ModelState);
+//        var c = await _service.CreateAsync(dto);
+//        return CreatedAtAction(nameof(GetById), new { id = c.Id }, c);
+//    }
+//    [HttpPut("{id:int}")]
+//    public async Task<IActionResult> Update(int id, [FromBody] WaitListUpdateRequest dto)
+//    {
+//        if (!ModelState.IsValid) return BadRequest(ModelState);
+//        var ok = await _service.UpdateAsync(id, dto);
+//        if (!ok) return NotFound(new { message = $"WaitList {id} not found." });
+//        return NoContent();
+//    }
+//    [HttpDelete("{id:int}")]
+//    public async Task<IActionResult> Delete(int id)
+//    {
+//        var ok = await _service.DeleteAsync(id);
+//        if (!ok) return NotFound(new { message = $"WaitList {id} not found." });
+//        return NoContent();
+//    }
+//}
