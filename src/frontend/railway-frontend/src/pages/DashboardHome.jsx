@@ -32,6 +32,9 @@ const iconMap = {
   Ticket,
   Train,
   Users,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
 };
 
 const DashboardHome = () => {
@@ -49,10 +52,10 @@ const DashboardHome = () => {
       try {
         const data = await getDashboardStats();
         // Giả sử API trả về đúng cấu trúc này
-        setStats(data.stats || []);
-        setRevenue(data.revenue || []);
-        setDistribution(data.distribution || []);
-        setActivities(data.activities || []);
+        setStats(data.stats ?? []);
+        setRevenue(data.revenue ?? []);
+        setDistribution(data.distribution ?? []);
+        setActivities(data.activities ?? []);
       } catch (error) {
         console.error("Error loading dashboard:", error);
         // Có thể chuyển hướng về login nếu lỗi 401

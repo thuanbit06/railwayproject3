@@ -3,29 +3,22 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RailAdmin.API.Models;
 
+// =========================================================
+// 4. SEAT - Ghế / giường vật lý
+// =========================================================
+[Table("Seats")]
 public class Seat
 {
     [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
     [Required]
-    public int CoachId { get; set; } // FK đến Coach (nếu có)
+    public int CoachId { get; set; }
 
-    [Required]
-    [MaxLength(5)]
+    [Required, MaxLength(10)]
     public string SeatNo { get; set; } = string.Empty;
 
-    [Required]
-    [MaxLength(20)]
-    public string ClassType { get; set; } = "Economy"; // 2AC, SL, Hard Sleeper...
-
-    public bool IsBooked { get; set; } = false;
-
-    public DateTime? BookedUntil { get; set; }
-
-    // Navigation
-    [ForeignKey("CoachId")]
-    public virtual Coach? Coach { get; set; }
-
-    public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    [ForeignKey(nameof(CoachId))]
+    public virtual TrainCoach? Coach { get; set; }
 }

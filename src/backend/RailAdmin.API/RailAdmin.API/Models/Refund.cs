@@ -3,35 +3,38 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RailAdmin.API.Models;
 
+// =========================================================
+// 13. REFUND - Hoàn tiền khi hủy vé
+// =========================================================
+[Table("Refunds")]
 public class Refund
 {
     [Key]
-    public int RefundID { get; set; }
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
 
-    public int TicketID { get; set; }
+    [Required]
+    public int TicketId { get; set; }
 
-    public int? PaymentID { get; set; }
+    public int? CancellationRuleId { get; set; }
 
-    public int? CancellationRuleID { get; set; }
+    [Column(TypeName = "decimal(12,2)")]
+    public decimal AmountPaid { get; set; }
 
-    [Column(TypeName = "decimal(10,2)")]
-    public decimal TotalAmountPaid { get; set; }
-
-    [Column(TypeName = "decimal(10,2)")]
+    [Column(TypeName = "decimal(12,2)")]
     public decimal CancellationFee { get; set; }
 
-    [Column(TypeName = "decimal(10,2)")]
+    [Column(TypeName = "decimal(12,2)")]
     public decimal RefundAmount { get; set; }
 
+    [MaxLength(20)]
     public string RefundStatus { get; set; } = "PENDING"; // PENDING / PROCESSED / FAILED
 
     public DateTime RefundDate { get; set; } = DateTime.UtcNow;
 
-    public int? ProcessedBy { get; set; }
+    [ForeignKey(nameof(TicketId))]
+    public virtual Ticket? Ticket { get; set; }
 
-    public string? Reason { get; set; }
-
-    // Navigation
-    [ForeignKey("TicketID")]
-    public Ticket? Ticket { get; set; }
+    [ForeignKey(nameof(CancellationRuleId))]
+    public virtual CancellationRule? CancellationRule { get; set; }
 }

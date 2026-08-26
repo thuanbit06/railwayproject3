@@ -1,197 +1,62 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.Models;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using RailAdmin.API.DTOs.Request.Ticket;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
 [Route("api/tickets")]
+[Authorize(Roles = "Admin")]
 public class TicketsController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly ITicketService _service;
+    public TicketsController(ITicketService service) { _service = service; }
 
-    public TicketsController(AppDbContext db)
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+        => Ok(await _service.GetAllAsync());
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        _db = db;
+        var t = await _service.GetByIdAsync(id);
+        if (t == null) return NotFound(new { message = $"Ticket {id} not found." });
+        return Ok(t);
     }
 
-    // =====================================================
-    // GET: /api/tickets/pnr/{pnr}
-    // =====================================================
-
-    [HttpGet("pnr/{pnr}")]
-    public async Task<IActionResult> GetPNRStatus(string pnr)
+    // ✅ MỚI: Lấy danh sách vé theo PNR
+    [HttpGet("by-pnr/{pnr}")]
+    public async Task<IActionResult> GetByPNR(string pnr)
     {
-        var ticket = await _db.Tickets
-            .Include(t => t.Reservation)
-                .ThenInclude(r => r.Passenger)
-
-            .Include(t => t.Reservation)
-                .ThenInclude(r => r.Schedule)
-                    .ThenInclude(s => s.Train)
-
-            .Include(t => t.Reservation)
-                .ThenInclude(r => r.Schedule)
-                    .ThenInclude(s => s.FromStation)
-
-            .Include(t => t.Reservation)
-                .ThenInclude(r => r.Schedule)
-                    .ThenInclude(s => s.ToStation)
-
-            .Include(t => t.Seat)
-
-            .FirstOrDefaultAsync(t => t.PNR == pnr);
-
-        if (ticket == null)
-        {
-            return NotFound(new
-            {
-                message = $"PNR '{pnr}' not found."
-            });
-        }
-
-        var reservation = ticket.Reservation;
-
-        if (reservation == null)
-        {
-            return NotFound(new
-            {
-                message = "Reservation data not found."
-            });
-        }
-
-        var schedule = reservation.Schedule;
-
-        var result = new
-        {
-            id = ticket.Id,
-
-            pnr = ticket.PNR,
-
-            status = ticket.PaymentStatus,
-
-            paymentStatus = ticket.PaymentStatus,
-
-            trainName =
-                schedule?.Train?.TrainName ?? "N/A",
-
-            trainNo =
-                schedule?.Train?.TrainNo ?? "N/A",
-
-            fromStation =
-                schedule?.FromStation?.Name ?? "N/A",
-
-            toStation =
-                schedule?.ToStation?.Name ?? "N/A",
-
-            journeyDate =
-                reservation.JourneyDate.ToString("yyyy-MM-dd"),
-
-            departureTime =
-                schedule?.DepartureTime
-                    .ToString(@"hh\:mm\:ss") ?? "",
-
-            seatNo =
-                ticket.Seat?.SeatNo ?? "N/A",
-
-            coachClass =
-                ticket.CoachClass ?? "N/A",
-
-            fare = ticket.Fare,
-
-            gstAmount = ticket.GSTAmount,
-
-            totalAmount = ticket.TotalAmount,
-
-            passenger =
-                reservation.Passenger == null
-                    ? null
-                    : new
-                    {
-                        fullName =
-                            reservation.Passenger.FullName,
-
-                        age =
-                            reservation.Passenger.Age,
-
-                        gender =
-                            reservation.Passenger.Gender,
-
-                        email =
-                            reservation.Passenger.Email,
-
-                        phone =
-                            reservation.Passenger.Phone
-                    }
-        };
-
-        return Ok(result);
+        var list = await _service.GetByPNRAsync(pnr);
+        if (!list.Any())
+            return NotFound(new { message = $"No tickets found for PNR {pnr}." });
+        return Ok(list);
     }
 
-
-    // =====================================================
-    // PUT: /api/tickets/{pnr}/cancel
-    // =====================================================
-
-    [HttpPut("{pnr}/cancel")]
-    public async Task<IActionResult> CancelTicket(
-        string pnr,
-        [FromBody] CancelTicketRequest? request)
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] TicketCreateRequest dto)
     {
-        try
-        {
-            var ticket = await _db.Tickets
-                .Include(t => t.Reservation)
-                .FirstOrDefaultAsync(t => t.PNR == pnr);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var created = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+    }
 
-            if (ticket == null)
-            {
-                return NotFound(new
-                {
-                    message = $"Ticket with PNR '{pnr}' not found."
-                });
-            }
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] TicketUpdateRequest dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var ok = await _service.UpdateAsync(id, dto);
+        if (!ok) return NotFound(new { message = $"Ticket {id} not found." });
+        return NoContent();
+    }
 
-            // Nếu đã hủy
-            if (ticket.PaymentStatus == "Cancelled")
-            {
-                return BadRequest(new
-                {
-                    message = "This ticket is already cancelled."
-                });
-            }
-
-            // Hủy ticket
-            ticket.PaymentStatus = "Cancelled";
-
-            // Hủy reservation liên quan
-            if (ticket.Reservation != null)
-            {
-                ticket.Reservation.Status = "Cancelled";
-            }
-
-            await _db.SaveChangesAsync();
-
-            return Ok(new
-            {
-                message = "Ticket cancelled successfully.",
-
-                pnr = ticket.PNR,
-
-                status = ticket.PaymentStatus,
-
-                reason = request?.Reason
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                message = "Failed to cancel ticket.",
-
-                error = ex.Message
-            });
-        }
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var ok = await _service.DeleteAsync(id);
+        if (!ok) return NotFound(new { message = $"Ticket {id} not found." });
+        return NoContent();
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using RailAdmin.API.Data;
 using RailAdmin.API.Dtos;
 using RailAdmin.API.DTOs;
+using RailAdmin.API.DTOs.Response;
 using RailAdmin.API.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -113,7 +114,8 @@ public class AuthController : ControllerBase
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Role = user.Role
+                Role = user.Role,
+                CreatedAt = user.CreatedAt
             }
         });
     }
@@ -190,12 +192,14 @@ public class AuthController : ControllerBase
             Token = token,
             Role = user.Role,
 
+
             User = new UserResponse
             {
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Role = user.Role
+                Role = user.Role,
+                CreatedAt = user.CreatedAt
             }
         });
     }
@@ -257,7 +261,8 @@ public class AuthController : ControllerBase
             Id = user.Id,
             Name = user.Name,
             Email = user.Email,
-            Role = user.Role
+            Role = user.Role,
+            CreatedAt = user.CreatedAt
         });
     }
 
