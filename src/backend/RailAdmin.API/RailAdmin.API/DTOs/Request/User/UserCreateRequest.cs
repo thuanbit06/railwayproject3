@@ -1,7 +1,7 @@
 ﻿// File: DTOs/UserCreateRequest.cs
 using System.ComponentModel.DataAnnotations;
 
-namespace RailAdmin.API.DTOs;
+namespace RailAdmin.API.DTOs.Request.User;
 
 public class UserCreateRequest
 {

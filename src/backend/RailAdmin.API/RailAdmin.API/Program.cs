@@ -118,19 +118,14 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5175"
+                "[http://localhost:5173](http://localhost:5173)",
+                "[http://localhost:5175](http://localhost:5175)"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
 });
-
-builder.Services.AddScoped<
-    IAdminDashboardService,
-    AdminDashboardService>();
-
 
 
 // Repositories
@@ -148,7 +143,8 @@ builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
-builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
+
 
 
 // Services
@@ -167,7 +163,9 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IWaitListService, WaitListService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+
 
 var app = builder.Build();
 

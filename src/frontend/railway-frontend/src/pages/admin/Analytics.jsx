@@ -40,7 +40,15 @@ const Analytics = () => {
 
       const data = await analyticsService.getAnalytics(range);
 
-      setAnalytics(data);
+      setAnalytics({
+        totalRevenue: data.totalRevenue ?? 0,
+        ticketsSold: data.ticketsSold ?? 0,
+        activeUsers: data.activeUsers ?? 0,
+        occupancyRate: data.occupancyRate ?? null,
+        classDistribution: data.classDistribution ?? [],
+        revenue: data.revenue ?? [],
+        ticketVolume: data.ticketVolume ?? [],
+      });
     } catch (err) {
       console.error("Analytics API Error:", err);
 

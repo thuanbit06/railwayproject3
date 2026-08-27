@@ -1,8 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace RailAdmin.API.DTOs.Response;
 
-namespace RailAdmin.API.DTOs.Response;
-
-public class TrainResponse
+public class TrainDetailResponse
 {
     public int Id { get; set; }
 
@@ -12,10 +10,12 @@ public class TrainResponse
 
     public string TrainType { get; set; } = string.Empty;
 
-    [Range(1, 100)]
     public int TotalCoaches { get; set; }
 
     public bool IsActive { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public List<TrainCoachResponse> Coaches { get; set; } = new();
 }
+
