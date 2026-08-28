@@ -10,13 +10,28 @@ namespace RailAdmin.API.Services;
 public class RefundService : IRefundService
 {
     private readonly IRefundRepository _refundRepository;
+    private readonly ICancellationService _cancellationService;
+    private readonly ITicketService _ticketService;
+    private readonly ISeatService _seatService;
 
     public RefundService(
-        IRefundRepository refundRepository)
+        IRefundRepository refundRepository,
+          ICancellationService cancellationService,
+        ITicketService ticketService,
+        ISeatService seatService
+    )
     {
         _refundRepository = refundRepository;
+        _cancellationService =
+           cancellationService;
+        _ticketService =
+            ticketService;
+        _seatService =
+            seatService;
     }
-
+    // =========================================================
+    // HISTORY
+    // =========================================================
     // =========================================================
     // GET ALL
     // =========================================================
@@ -27,7 +42,9 @@ public class RefundService : IRefundService
         var refunds =
             await _refundRepository.GetAllAsync();
 
-        return refunds.Select(MapToResponse);
+        return refunds
+             .OrderByDescending(x => x.RefundDate)
+            .Select(MapToResponse);
     }
 
     // =========================================================
@@ -97,9 +114,9 @@ public class RefundService : IRefundService
 
         var alreadyExists =
             await _refundRepository
-                .ExistsForTicketAsync(dto.TicketId);
+                .GetByTicketIdAsync(dto.TicketId);
 
-        if (alreadyExists)
+        if (alreadyExists != null)
         {
             throw new InvalidOperationException(
                 $"A refund already exists for " +
@@ -116,10 +133,35 @@ public class RefundService : IRefundService
         // from the ticket/cancellation workflow.
         // -----------------------------------------------------
 
-        throw new NotImplementedException(
-            "CreateAsync should receive the " +
-            "calculated cancellation result from " +
-            "CancellationRuleService.");
+        //throw new NotImplementedException(
+        //    "CreateAsync should receive the " +
+        //    "calculated cancellation result from " +
+        //    "CancellationRuleService.");
+        var refundAmount = dto.AmountPaid - dto.CancellationFee;
+
+        if (refundAmount < 0)
+            refundAmount = 0;
+
+        var refund = new Refund
+        {
+            TicketId = dto.TicketId,
+
+            CancellationRuleId = dto.CancellationRuleId,
+
+            AmountPaid = dto.AmountPaid,
+
+            CancellationFee = dto.CancellationFee,
+
+            RefundAmount = refundAmount,
+
+            RefundStatus = "PENDING",
+
+            RefundDate = DateTime.UtcNow
+        };
+
+        var created = await _refundRepository.CreateAsync(refund);
+
+        return MapToResponse(created);
     }
 
     // =========================================================
@@ -128,150 +170,89 @@ public class RefundService : IRefundService
 
     public async Task<RefundResponse>
         CreateFromCalculationAsync(
-            int ticketId,
-            int? cancellationRuleId,
-            decimal amountPaid,
-            decimal cancellationFee,
-            decimal refundAmount)
+            int ticketId)
     {
-        if (ticketId <= 0)
-        {
-            throw new ArgumentException(
-                "Ticket ID must be greater than 0.",
-                nameof(ticketId));
-        }
+        // 1. Check duplicate
+        var existing =
+            await _refundRepository.GetByTicketIdAsync(
+                ticketId);
 
-        if (amountPaid < 0)
-        {
-            throw new ArgumentException(
-                "Amount paid cannot be negative.");
-        }
-
-        if (cancellationFee < 0)
-        {
-            throw new ArgumentException(
-                "Cancellation fee cannot be negative.");
-        }
-
-        if (refundAmount < 0)
-        {
-            throw new ArgumentException(
-                "Refund amount cannot be negative.");
-        }
-
-        // -----------------------------------------------------
-        // Prevent duplicate refund
-        // -----------------------------------------------------
-
-        var exists =
-            await _refundRepository
-                .ExistsForTicketAsync(ticketId);
-
-        if (exists)
+        if (existing != null)
         {
             throw new InvalidOperationException(
-                $"A refund already exists for " +
-                $"ticket {ticketId}.");
+                $"Refund already exists for Ticket {ticketId}.");
         }
 
-        // -----------------------------------------------------
-        // Business consistency validation
-        // -----------------------------------------------------
+        // 2. Calculate cancellation
+        var calculation =
+            await _cancellationService
+                .CalculateCancellationAsync(
+                    ticketId);
 
-        var expectedRefund = Math.Max(amountPaid - cancellationFee, 0);
-          
-        if (expectedRefund < 0)
-        {
-            expectedRefund = 0;
-        }
-
-        expectedRefund =
-            Math.Round(
-                expectedRefund,
-                2,
-                MidpointRounding.AwayFromZero);
-
-        if (refundAmount != expectedRefund)
+        if (calculation == null)
         {
             throw new InvalidOperationException(
-                "Refund amount does not match " +
-                "the cancellation calculation.");
+                "Unable to calculate cancellation.");
         }
 
-        // -----------------------------------------------------
-        // Create PENDING refund
-        // -----------------------------------------------------
+        // 3. Check cancellation allowed
+        if (!calculation.CanCancel)
+        {
+            throw new InvalidOperationException(
+                calculation.RejectReason
+                ?? "Cancellation is not allowed.");
+        }
 
+        // 4. Create refund PENDING
         var refund = new Refund
         {
-            TicketId = ticketId,
+            TicketId =
+                ticketId,
 
             CancellationRuleId =
-                cancellationRuleId,
+                calculation.CancellationRuleId,
 
             AmountPaid =
-                amountPaid,
+                calculation.Fare,
 
             CancellationFee =
-                cancellationFee,
+                calculation.CancellationFee,
 
             RefundAmount =
-                refundAmount,
+                calculation.RefundAmount,
 
             RefundStatus =
-                RefundStatus.Pending,
+                "PENDING",
 
             RefundDate =
                 DateTime.UtcNow
         };
 
         var created =
-            await _refundRepository
-                .CreateAsync(refund);
+            await _refundRepository.CreateAsync(refund);
 
         return MapToResponse(created);
     }
+
 
     // =========================================================
     // PROCESS REFUND
     // =========================================================
 
-    public async Task<RefundResponse>
-        ProcessAsync(int refundId)
+    public async Task<RefundResponse?>
+       ProcessAsync(int refundId)
     {
-        if (refundId <= 0)
-        {
-            throw new ArgumentException(
-                "Refund ID must be greater than 0.",
-                nameof(refundId));
-        }
-
         var refund =
-            await _refundRepository
-                .GetByIdAsync(refundId);
+            await _refundRepository.GetByIdAsync(
+                refundId);
 
         if (refund == null)
-        {
-            throw new KeyNotFoundException(
-                $"Refund {refundId} not found.");
-        }
+            return null;
 
-        // -----------------------------------------------------
-        // Idempotency
-        // -----------------------------------------------------
-
-        if (refund.RefundStatus ==
-            RefundStatus.Processed)
-        {
-            return MapToResponse(refund);
-        }
-
-        if (refund.RefundStatus !=
-            RefundStatus.Pending)
+        if (refund.RefundStatus != "PENDING")
         {
             throw new InvalidOperationException(
-                $"Refund {refundId} cannot be processed " +
-                $"because its current status is " +
+                $"Refund {refundId} is already " +
                 $"'{refund.RefundStatus}'.");
         }
 
@@ -289,23 +270,44 @@ public class RefundService : IRefundService
             //     refund.RefundAmount);
             // -------------------------------------------------
 
-            var success = true;
+            bool paymentSuccess = true;
 
-            if (!success)
+            if (!paymentSuccess)
             {
-                await _refundRepository
-                    .UpdateStatusAsync(
-                        refundId,
-                        RefundStatus.Failed);
+                await MarkAsFailedAsync(
+                    refundId);
 
-                throw new InvalidOperationException(
-                    "Payment gateway rejected refund.");
+                return await GetByIdAsync(
+                    refundId);
             }
 
-            await _refundRepository
-                .UpdateStatusAsync(
-                    refundId,
-                    RefundStatus.Processed);
+            // Payment succeeded
+            refund.RefundStatus =
+                "PROCESSED";
+
+            refund.RefundDate =
+                DateTime.UtcNow;
+
+            await _refundRepository.UpdateAsync(
+                refund);
+
+            // Ticket → CANCELLED
+            await _ticketService.CancelAsync(
+                refund.TicketId,
+                "Customer requested cancellation.");
+
+            // Release Seat
+            var ticket =
+                await _ticketService.GetByIdAsync(
+                    refund.TicketId);
+
+            if (ticket?.SeatId != null)
+            {
+                await _seatService.ReleaseAsync(
+                    ticket.SeatId.Value);
+            }
+
+            return MapToResponse(refund);
         }
         catch
         {
@@ -354,10 +356,13 @@ public class RefundService : IRefundService
                 "A processed refund cannot be marked as failed.");
         }
 
-        return await _refundRepository
-            .UpdateStatusAsync(
-                refundId,
-                RefundStatus.Failed);
+        refund.RefundStatus =
+           "FAILED";
+
+        refund.RefundDate =
+         DateTime.UtcNow;
+
+        return await _refundRepository.UpdateAsync(refund);
     }
 
     // =========================================================
@@ -367,15 +372,20 @@ public class RefundService : IRefundService
     public async Task<bool>
         DeleteAsync(int id)
     {
-        if (id <= 0)
+        var refund =
+           await _refundRepository.GetByIdAsync(id);
+
+        if (refund == null)
+            return false;
+
+        // Do not delete processed refunds
+        if (refund.RefundStatus == "PROCESSED")
         {
-            throw new ArgumentException(
-                "Refund ID must be greater than 0.",
-                nameof(id));
+            throw new InvalidOperationException(
+                "Processed refund cannot be deleted.");
         }
 
-        return await _refundRepository
-            .DeleteAsync(id);
+        return await _refundRepository.DeleteAsync(id);
     }
 
     // =========================================================
@@ -387,9 +397,11 @@ public class RefundService : IRefundService
     {
         return new RefundResponse
         {
-            Id = r.Id,
+            Id =
+                r.Id,
 
-            TicketId = r.TicketId,
+            TicketId =
+                r.TicketId,
 
             CancellationRuleId =
                 r.CancellationRuleId,

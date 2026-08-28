@@ -11,9 +11,7 @@ public interface ITicketRepository
     Task<Ticket> CreateAsync(Ticket ticket);
     Task<bool> UpdateAsync(Ticket ticket);
     Task<bool> DeleteAsync(int id);
-    Task<bool> CancelAsync(
-    int ticketId,
-    string? cancelReason,
-    DateTime cancelledAt);
+    Task<bool> CancelAsync(int ticketId,string? cancelReason,DateTime cancelledAt);
     Task<bool> ReleaseSeatAsync(int seatId);
+    Task<Ticket?> GetByIdWithBookingAndTripAsync(int id);
 }

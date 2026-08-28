@@ -5,35 +5,25 @@ using global::RailAdmin.API.DTOs.Response;
 
 public interface ICancellationService
 {
-    Task<IEnumerable<CancellationCalculationResponse>>
-        GetAllAsync();
+    Task<IEnumerable<CancellationRuleResponse>> GetAllAsync();
 
-    Task<CancellationCalculationResponse?>
-        GetByIdAsync(int ticketId);
+    Task<CancellationRuleResponse?> GetByIdAsync(int id);
 
-    Task<CancellationCalculationResponse>
-        CreateAsync(
-            CancellationRequest dto);
+    Task<CancellationRuleResponse> CreateAsync(
+        CancellationRuleCreateRequest dto);
 
     Task<bool> UpdateAsync(
-        int ticketId,
-        CancellationRequest dto);
+        int id,
+        CancellationRuleUpdateRequest dto);
 
-    Task<bool> DeleteAsync(int ticketId);
+    Task<bool> DeleteAsync(int id);
 
-    Task<CancellationRuleResponse?>
-        GetApplicableRuleAsync(
-            int hoursBeforeDeparture);
+    Task<CancellationRuleResponse?> GetApplicableRuleAsync(
+        int ticketId);
 
-    Task<CancellationCalculationResponse>
-        CalculateCancellationAsync(
-            int ticketId);
+    Task<CancellationCalculationResponse?> CalculateCancellationAsync(
+        int ticketId);
 
-    Task<bool>
-        IsCancellationAllowedAsync(
-            int ticketId);
-
-    Task<CancellationCalculationResponse>
-        CancelTicketAsync(
-            CancellationRequest dto);
+    Task<bool> IsCancellationAllowedAsync(
+        int ticketId);
 }

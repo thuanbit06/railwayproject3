@@ -26,10 +26,5 @@ public interface IRefundService
     // Admin
     Task<bool> DeleteAsync(int id);
 
-    Task<RefundResponse> CreateFromCalculationAsync(
-    int ticketId,
-    int? cancellationRuleId,
-    decimal amountPaid,
-    decimal cancellationFee,
-    decimal refundAmount);
+    Task<RefundResponse> CreateFromCalculationAsync(int ticketId);
 }

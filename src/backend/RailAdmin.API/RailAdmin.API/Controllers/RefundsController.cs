@@ -1,108 +1,141 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.Models;
+using RailAdmin.API.DTOs.Request.Refund;
+using RailAdmin.API.Services.IService;
 
-namespace RailAdmin.API.Controllers
+namespace RailAdmin.API.Controllers;
+
+[ApiController]
+[Route("api/refunds")]
+[Authorize(Roles = "Admin")]
+public class RefundsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class RefundsController : ControllerBase
+    private readonly IRefundService _refundService;
+
+    public RefundsController(
+        IRefundService refundService)
     {
-        private readonly AppDbContext _context;
+        _refundService = refundService;
+    }
 
-        public RefundsController(AppDbContext context)
+    // =========================================================
+    // GET ALL
+    // =========================================================
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var refunds =
+            await _refundService.GetAllAsync();
+
+        return Ok(refunds);
+    }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var refund =
+            await _refundService.GetByIdAsync(id);
+
+        if (refund == null)
         {
-            _context = context;
-        }
-
-        // GET: api/Refunds
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Refund>>> GetRefunds()
-        {
-            return await _context.Refunds.ToListAsync();
-        }
-
-        // GET: api/Refunds/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Refund>> GetRefund(int id)
-        {
-            var refund = await _context.Refunds.FindAsync(id);
-
-            if (refund == null)
+            return NotFound(new
             {
-                return NotFound();
-            }
-
-            return refund;
+                message =
+                    $"Refund {id} not found."
+            });
         }
 
-        // PUT: api/Refunds/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutRefund(int id, Refund refund)
+        return Ok(refund);
+    }
+
+    // =========================================================
+    // GET BY TICKET
+    // =========================================================
+
+    [HttpGet("ticket/{ticketId:int}")]
+    public async Task<IActionResult>
+        GetByTicketId(int ticketId)
+    {
+        var refund =
+            await _refundService
+                .GetByTicketIdAsync(ticketId);
+
+        if (refund == null)
         {
-            if (id != refund.Id)
+            return NotFound(new
             {
-                return BadRequest();
-            }
-
-            _context.Entry(refund).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!RefundExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
+                message =
+                    $"Refund for ticket " +
+                    $"{ticketId} not found."
+            });
         }
 
-        // POST: api/Refunds
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Refund>> PostRefund(Refund refund)
+        return Ok(refund);
+    }
+
+    // =========================================================
+    // CREATE REFUND
+    // =========================================================
+
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] RefundCreateRequest dto)
+    {
+        if (!ModelState.IsValid)
         {
-            _context.Refunds.Add(refund);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetRefund", new { id = refund.Id }, refund);
+            return BadRequest(ModelState);
         }
 
-        // DELETE: api/Refunds/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteRefund(int id)
+        var refund =
+            await _refundService
+                .CreateAsync(dto);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = refund.Id },
+            refund);
+    }
+
+    // =========================================================
+    // PROCESS REFUND
+    // =========================================================
+
+    [HttpPost("{id:int}/process")]
+    public async Task<IActionResult>
+        Process(int id)
+    {
+        var refund =
+            await _refundService
+                .ProcessAsync(id);
+
+        return Ok(refund);
+    }
+
+    // =========================================================
+    // DELETE
+    // =========================================================
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var deleted =
+            await _refundService
+                .DeleteAsync(id);
+
+        if (!deleted)
         {
-            var refund = await _context.Refunds.FindAsync(id);
-            if (refund == null)
+            return NotFound(new
             {
-                return NotFound();
-            }
-
-            _context.Refunds.Remove(refund);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+                message =
+                    $"Refund {id} not found."
+            });
         }
 
-        private bool RefundExists(int id)
-        {
-            return _context.Refunds.Any(e => e.Id == id);
-        }
+        return NoContent();
     }
 }

@@ -2,6 +2,7 @@
 using RailAdmin.API.Data;
 using RailAdmin.API.Models;
 using RailAdmin.API.Repository.IRepository;
+using System.Net.Sockets;
 
 namespace RailAdmin.API.Repository;
 
@@ -90,6 +91,19 @@ public class RefundRepository : IRefundRepository
 
         await _db.SaveChangesAsync();
 
+        return true;
+    }
+
+    public async Task<bool> UpdateAsync(Refund refund)
+    {
+        //var existing = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticket.Id);
+        //if (existing == null) return false;
+        //existing.SeatId = ticket.SeatId;
+        //existing.Status = ticket.Status;
+        //existing.CancelReason = ticket.CancelReason;
+        //if (ticket.Status == "Cancelled" && existing.CancelledAt == null)
+        //    existing.CancelledAt = DateTime.UtcNow;
+        //await _db.SaveChangesAsync();
         return true;
     }
 }

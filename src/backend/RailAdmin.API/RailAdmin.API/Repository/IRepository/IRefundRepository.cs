@@ -19,4 +19,5 @@ public interface IRefundRepository
         string status);
 
     Task<bool> DeleteAsync(int id);
+    Task<bool> UpdateAsync(Refund refund);
 }

@@ -16,13 +16,13 @@ public class Refund
     public int? CancellationRuleId { get; set; }
 
     [Column(TypeName = "decimal(12,2)")]
-    public decimal AmountPaid { get; set; }
+    public decimal? AmountPaid { get; set; }
 
     [Column(TypeName = "decimal(12,2)")]
-    public decimal CancellationFee { get; set; }
+    public decimal? CancellationFee { get; set; }
 
     [Column(TypeName = "decimal(12,2)")]
-    public decimal RefundAmount { get; set; }
+    public decimal? RefundAmount { get; set; }
 
     [Required]
     [MaxLength(20)]
