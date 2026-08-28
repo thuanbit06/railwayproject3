@@ -1,63 +1,140 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.Models;
+using RailAdmin.API.DTOs.Request.Refund;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
-[Route("api/admin/fare-rules")]
+[Route("api/refunds")]
 [Authorize(Roles = "Admin")]
-public class FareRulesController : ControllerBase
+public class RefundsController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly IRefundService _refundService;
 
-    public FareRulesController(AppDbContext db)
+    public RefundsController(
+        IRefundService refundService)
     {
-        _db = db;
+        _refundService = refundService;
     }
+
+    // =========================================================
+    // GET ALL
+    // =========================================================
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.FareRules.ToListAsync());
+        var refunds =
+            await _refundService.GetAllAsync();
+
+        return Ok(refunds);
     }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var refund =
+            await _refundService.GetByIdAsync(id);
+
+        if (refund == null)
+        {
+            return NotFound(new
+            {
+                message =
+                    $"Refund {id} not found."
+            });
+        }
+
+        return Ok(refund);
+    }
+
+    // =========================================================
+    // GET BY TICKET
+    // =========================================================
+
+    [HttpGet("ticket/{ticketId:int}")]
+    public async Task<IActionResult>
+        GetByTicketId(int ticketId)
+    {
+        var refund =
+            await _refundService
+                .GetByTicketIdAsync(ticketId);
+
+        if (refund == null)
+        {
+            return NotFound(new
+            {
+                message =
+                    $"Refund for ticket " +
+                    $"{ticketId} not found."
+            });
+        }
+
+        return Ok(refund);
+    }
+
+    // =========================================================
+    // CREATE REFUND
+    // =========================================================
 
     [HttpPost]
-    public async Task<IActionResult> Create(FareRule r)
+    public async Task<IActionResult> Create(
+        [FromBody] RefundCreateRequest dto)
     {
-        _db.FareRules.Add(r);
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
 
-        await _db.SaveChangesAsync();
+        var refund =
+            await _refundService
+                .CreateAsync(dto);
 
-        return Ok(r);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = refund.Id },
+            refund);
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, FareRule r)
+    // =========================================================
+    // PROCESS REFUND
+    // =========================================================
+
+    [HttpPost("{id:int}/process")]
+    public async Task<IActionResult>
+        Process(int id)
     {
-        if (id != r.Id)
-            return BadRequest();
+        var refund =
+            await _refundService
+                .ProcessAsync(id);
 
-        _db.Entry(r).State = EntityState.Modified;
-
-        await _db.SaveChangesAsync();
-
-        return NoContent();
+        return Ok(refund);
     }
 
-    [HttpDelete("{id}")]
+    // =========================================================
+    // DELETE
+    // =========================================================
+
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var r = await _db.FareRules.FindAsync(id);
+        var deleted =
+            await _refundService
+                .DeleteAsync(id);
 
-        if (r == null)
-            return NotFound();
-
-        _db.FareRules.Remove(r);
-
-        await _db.SaveChangesAsync();
+        if (!deleted)
+        {
+            return NotFound(new
+            {
+                message =
+                    $"Refund {id} not found."
+            });
+        }
 
         return NoContent();
     }

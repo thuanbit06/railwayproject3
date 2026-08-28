@@ -4,6 +4,8 @@
     {
         public int TicketId { get; set; }
 
+        public decimal Fare { get; set; }
+
         public string PNR { get; set; } = string.Empty;
 
         public decimal AmountPaid { get; set; }
@@ -23,5 +25,10 @@
         public bool CancellationAllowed { get; set; }
 
         public string Message { get; set; } = string.Empty;
+
+        public decimal MinFee { get; set; }
+
+        public bool IsCancellationAllowed { get; set; }
+
     }
 }

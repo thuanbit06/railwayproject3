@@ -3,9 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RailAdmin.API.Models;
 
-// =========================================================
-// 13. REFUND - Hoàn tiền khi hủy vé
-// =========================================================
 [Table("Refunds")]
 public class Refund
 {
@@ -27,8 +24,9 @@ public class Refund
     [Column(TypeName = "decimal(12,2)")]
     public decimal RefundAmount { get; set; }
 
+    [Required]
     [MaxLength(20)]
-    public string RefundStatus { get; set; } = "PENDING"; // PENDING / PROCESSED / FAILED
+    public string RefundStatus { get; set; } = "PENDING";
 
     public DateTime RefundDate { get; set; } = DateTime.UtcNow;
 

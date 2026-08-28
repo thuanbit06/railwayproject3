@@ -494,6 +494,22 @@ public class CancellationRuleService
         }
     }
 
+    private static void ValidateFeeType(
+      string feeType)
+    {
+        if (!feeType.Equals(
+                "PERCENTAGE",
+                StringComparison.OrdinalIgnoreCase)
+            &&
+            !feeType.Equals(
+                "FLAT",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "FeeType must be PERCENTAGE or FLAT.");
+        }
+    }
+
     private static void ValidateRule(
         CancellationRuleUpdateRequest dto)
     {
@@ -572,5 +588,15 @@ public class CancellationRuleService
             MinFee =
                 rule.MinFee
         };
+    }
+
+    public Task<CancellationCalculationResponse> CalculateCancellationAsync(decimal fare, int hoursBeforeDeparture)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> IsCancellationAllowedAsync(int hoursBeforeDeparture)
+    {
+        throw new NotImplementedException();
     }
 }

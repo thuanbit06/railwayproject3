@@ -47,4 +47,9 @@ public class TicketRepository : ITicketRepository
         await _db.SaveChangesAsync();
         return true;
     }
+
+    public Task<Ticket?> GetByIdWithBookingAsync(int ticketId)
+    {
+        throw new NotImplementedException();
+    }
 }
