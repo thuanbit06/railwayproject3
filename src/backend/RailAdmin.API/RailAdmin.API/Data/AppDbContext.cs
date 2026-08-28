@@ -87,6 +87,10 @@ public class AppDbContext : DbContext
             .HasIndex(x => x.Email)
             .IsUnique();
 
+        // ===== Booking =====
+        modelBuilder.Entity<Booking>()
+            .HasKey(x => x.PNR); // Chỉ định PNR là Primary Key
+
         // ===== Booking (PNR là string PK, không auto-generate) =====
         modelBuilder.Entity<Booking>()
             .Property(x => x.PNR)
@@ -116,6 +120,12 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(x => x.SeatId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // Chống double-booking ở tầng DB bằng Filtered Index (Chỉ áp dụng với vé chưa Hủy)
+        modelBuilder.Entity<Ticket>()
+            .HasIndex(x => new { x.PNR, x.SeatId })
+            .IsUnique()
+            .HasFilter("[Status] <> 'Cancelled' AND [SeatId] IS NOT NULL");
 
         // Một ghế trên một chuyến chỉ được giữ bởi 1 vé còn hiệu lực
         // (Lọc theo Status ở tầng service; DB chỉ đảm bảo không trùng SeatId
@@ -156,5 +166,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<WaitList>()
             .HasIndex(x => new { x.TripId, x.Position });
+
+        modelBuilder.Entity<Booking>().Property(b => b.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<FareRule>().Property(f => f.BasePrice).HasPrecision(18, 2);
+        modelBuilder.Entity<Payment>().Property(p => p.Amount).HasPrecision(18, 2);
+        modelBuilder.Entity<Refund>().Property(r => r.AmountPaid).HasPrecision(18, 2);
     }
 }
