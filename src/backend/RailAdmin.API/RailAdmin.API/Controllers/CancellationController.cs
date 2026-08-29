@@ -72,9 +72,7 @@ public class CancellationsController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var result =
-            await _service
-                .CancelTicketAsync(dto);
+        var result = await _service.CalculateCancellationAsync(dto.TicketId);
 
         return Ok(result);
     }

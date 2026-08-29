@@ -16,4 +16,8 @@ public class CancellationCalculationRequest
 
     [Required]
     public DateTime DepartureTime { get; set; }
+
+    public decimal fare { get; internal set; }
+
+    public int hoursBeforeDeparture { get; set; }
 }

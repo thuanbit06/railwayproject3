@@ -90,8 +90,13 @@ public class SeatService : ISeatService
         return await _repo.IsAvailableAsync(seatId); 
     }
 
-    public Task<bool> IsOwnedByTicketAsync(int seatId, int ticketId)
+    public async Task<bool> ReleaseAsync(int seatId)
     {
-        throw new NotImplementedException();
+        var seat = await _repo.GetByIdAsync(seatId);
+
+        if (seat == null)
+            return false;
+
+        return await _repo.ReleaseAsync(seatId);
     }
 }

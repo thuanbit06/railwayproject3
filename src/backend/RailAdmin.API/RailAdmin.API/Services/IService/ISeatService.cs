@@ -12,6 +12,5 @@ public interface ISeatService
     Task<bool> DeleteAsync(int id);
     Task<bool> ReleaseAsync(int seatId, int ticketId);
     Task<bool> IsAvailableAsync(int seatId);
-    Task<bool> IsOwnedByTicketAsync(int seatId, int ticketId);
-    Task ReleaseAsync(int value);
+    Task<bool> ReleaseAsync(int seatId);
 }

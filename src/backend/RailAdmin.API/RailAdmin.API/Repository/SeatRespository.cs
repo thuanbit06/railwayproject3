@@ -68,4 +68,12 @@ public class SeatRepository : ISeatRepository
             .AsNoTracking()
             .AnyAsync(t => t.Id == ticketId && t.SeatId == seatId && t.Status == "Confirmed"); 
     }
+
+    public async Task<bool> ReleaseAsync(int seatId)
+    {
+        var seat = await _db.Seats
+            .FirstOrDefaultAsync(s => s.Id == seatId);
+
+        return seat != null;
+    }
 }

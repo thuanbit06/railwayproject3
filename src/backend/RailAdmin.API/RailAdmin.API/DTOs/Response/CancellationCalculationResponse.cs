@@ -29,4 +29,7 @@ public class CancellationCalculationResponse
     public decimal CancellationFee { get; set; }
 
     public decimal RefundAmount { get; set; }
+    public decimal AmountPaid { get; internal set; }
+    public bool CancellationAllowed { get; internal set; }
+    public string Message { get; internal set; }
 }

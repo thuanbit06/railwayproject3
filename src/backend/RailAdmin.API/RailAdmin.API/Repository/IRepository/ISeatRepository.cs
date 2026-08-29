@@ -12,4 +12,5 @@ public interface ISeatRepository
     Task<bool> DeleteAsync(int id);
     Task<bool> IsAvailableAsync(int seatId);
     Task<bool> IsOwnedByTicketAsync(int seatId, int ticketId);
+    Task<bool> ReleaseAsync(int seatId);
 }

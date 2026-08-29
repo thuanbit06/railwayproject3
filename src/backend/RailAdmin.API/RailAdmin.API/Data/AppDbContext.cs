@@ -104,7 +104,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Booking>()
             .HasOne(x => x.Trip)
-            .WithMany()
+            .WithMany(t => t.Bookings)
             .HasForeignKey(x => x.TripId)
             .OnDelete(DeleteBehavior.Restrict);
 
