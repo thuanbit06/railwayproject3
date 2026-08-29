@@ -10,4 +10,7 @@ public interface ISeatService
     Task<SeatResponse> CreateAsync(SeatCreateRequest dto);
     Task<bool> UpdateAsync(int id, SeatUpdateRequest dto);
     Task<bool> DeleteAsync(int id);
+    Task<bool> ReleaseAsync(int seatId, int ticketId);
+    Task<bool> IsAvailableAsync(int seatId);
+    Task<bool> ReleaseAsync(int seatId);
 }

@@ -289,8 +289,7 @@ public class CancellationRuleService
                 CancellationAllowed = false,
                 CancellationFee = 0,
                 RefundAmount = 0,
-                Message =
-                    "Cancellation is not allowed after departure."
+                Message = "Cancellation is not allowed after departure."
             };
         }
 
@@ -494,6 +493,22 @@ public class CancellationRuleService
         }
     }
 
+    private static void ValidateFeeType(
+      string feeType)
+    {
+        if (!feeType.Equals(
+                "PERCENTAGE",
+                StringComparison.OrdinalIgnoreCase)
+            &&
+            !feeType.Equals(
+                "FLAT",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "FeeType must be PERCENTAGE or FLAT.");
+        }
+    }
+
     private static void ValidateRule(
         CancellationRuleUpdateRequest dto)
     {
@@ -572,5 +587,124 @@ public class CancellationRuleService
             MinFee =
                 rule.MinFee
         };
+    }
+
+    public async Task<CancellationCalculationResponse>
+    CalculateCancellationAsync(
+        decimal fare,
+        int hoursBeforeDeparture)
+    {
+        if (fare < 0)
+        {
+            throw new ArgumentException(
+                "Fare cannot be negative.",
+                nameof(fare));
+        }
+
+        var result = new CancellationCalculationResponse
+        {
+            Fare = fare,
+            HoursBeforeDeparture = hoursBeforeDeparture
+        };
+
+        // Không cho phép hủy nếu tàu đã chạy
+        if (hoursBeforeDeparture < 0)
+        {
+            result.CancellationAllowed = false;
+            result.Message = "The train has already departed.";
+
+            return result;
+        }
+
+        // Không cho phép hủy online trong vòng 4 giờ
+        if (hoursBeforeDeparture < 4)
+        {
+            result.CancellationAllowed = false;
+            result.Message =
+                "Online cancellation is not allowed within 4 hours before departure.";
+
+            return result;
+        }
+
+        // Tìm rule phù hợp
+        var rule = await _cancellationRuleRepository.GetApplicableRuleAsync(
+            hoursBeforeDeparture);
+
+        if (rule == null)
+        {
+            result.CancellationAllowed = false;
+            result.Message =
+                "No applicable cancellation rule was found.";
+
+            return result;
+        }
+
+        decimal cancellationFee;
+
+        if (rule.FeeType.Equals(
+            "PERCENTAGE",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            cancellationFee =
+                fare * rule.FeeValue / 100m;
+        }
+        else if (rule.FeeType.Equals(
+            "FLAT",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            cancellationFee = rule.FeeValue;
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"Unsupported fee type: {rule.FeeType}");
+        }
+
+        // Áp dụng MinFee
+        cancellationFee =
+            Math.Max(cancellationFee, rule.MinFee);
+
+        // Không được phí > tiền vé
+        cancellationFee =
+            Math.Min(cancellationFee, fare);
+
+        var refundAmount =
+            fare - cancellationFee;
+
+        result.CancellationAllowed = true;
+        result.CancellationRuleId = rule.Id;
+        result.FeeType = rule.FeeType;
+        result.FeeValue = rule.FeeValue;
+        result.MinFee = rule.MinFee;
+        result.CancellationFee =
+            decimal.Round(
+                cancellationFee,
+                2,
+                MidpointRounding.AwayFromZero);
+
+        result.RefundAmount =
+            decimal.Round(
+                refundAmount,
+                2,
+                MidpointRounding.AwayFromZero);
+
+        result.Message = "Cancellation is allowed.";
+
+        return result;
+    }
+
+    public async Task<bool> IsCancellationAllowedAsync(
+    int hoursBeforeDeparture)
+    {
+        if (hoursBeforeDeparture < 0)
+            return false;
+
+        if (hoursBeforeDeparture < 4)
+            return false;
+
+        var rule = await _cancellationRuleRepository.GetApplicableRuleAsync(
+            hoursBeforeDeparture);
+
+        return rule != null;
     }
 }

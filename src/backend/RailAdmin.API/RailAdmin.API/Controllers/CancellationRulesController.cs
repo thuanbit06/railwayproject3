@@ -169,10 +169,8 @@ public class CancellationRulesController
         var result =
             await _cancellationRuleService
                 .CalculateCancellationAsync(
-                    dto.TicketId,
-                    dto.PNR,
-                    dto.AmountPaid,
-                    dto.DepartureTime);
+                    dto.fare,
+                    dto.hoursBeforeDeparture);
 
         return Ok(result);
     }

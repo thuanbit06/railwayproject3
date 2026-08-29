@@ -23,5 +23,4 @@ public interface ICancellationRuleRepository
 
     Task<bool> DeleteAsync(int id);
 
-    //Task GetApplicableRuleAsync();
 }

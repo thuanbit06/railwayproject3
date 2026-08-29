@@ -158,6 +158,10 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IWaitListService, WaitListService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICancellationService, CancellationService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
+
 
 var app = builder.Build();
 

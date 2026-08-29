@@ -50,6 +50,8 @@ namespace RailAdmin.API.Models
         public virtual Station? ToStation { get; set; }
 
         public virtual ICollection<TripStop>? Stops { get; set; }
+
+        public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }
 
 }
