@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RailAdmin.API.Data;
-using RailAdmin.API.Repository.IRepository;
-using RailAdmin.API.Services;
-using RailAdmin.API.Services.IService;
-using System.Text;
 using RailAdmin.API.Repository;
+using RailAdmin.API.Repository.IRepository;
+using RailAdmin.API.Services.IRepository;
+using RailAdmin.API.Services.IService;
+using RailAdmin.API.Services.Repository;
+using RailAdmin.API.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -115,16 +117,12 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5175"
-            )
+            .WithOrigins("http://localhost:5173", "http://localhost:5175")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
 });
-
 
 
 // Repositories
@@ -142,6 +140,10 @@ builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
+builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+
 
 // Services
 builder.Services.AddScoped<IStationService, StationService>();
@@ -158,8 +160,20 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IWaitListService, WaitListService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+
 
 var app = builder.Build();
+
+var supportedCultures = new[] { new System.Globalization.CultureInfo("en-US") };
+app.UseRequestLocalization(new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("en-US"),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
 
 
 // =========================================================
@@ -198,4 +212,4 @@ using (var scope = app.Services.CreateScope())
         app.Configuration);
 }
 
-app.Run();
+    app.Run();

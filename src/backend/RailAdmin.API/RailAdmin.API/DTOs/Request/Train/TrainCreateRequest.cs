@@ -12,12 +12,10 @@ public class TrainCreateRequest
     [MaxLength(100)]
     public string TrainName { get; set; } = string.Empty;
 
-    public int? MaxSpeed { get; set; }
-
-    public int TotalCoaches { get; set; } = 12;
-
     [MaxLength(20)]
     public string TrainType { get; set; } = string.Empty;
+
+    public int TotalCoaches { get; set; }
 
     public bool IsActive { get; set; } = true;
 }

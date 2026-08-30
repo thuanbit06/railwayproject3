@@ -9,4 +9,9 @@ public interface ITripRepository
     Task<Trip> CreateAsync(Trip trip);
     Task<bool> UpdateAsync(Trip trip);
     Task<bool> DeleteAsync(int id);
+    Task<bool> DecreaseAvailableSeatsAsync(
+    int tripId);
+
+    Task<bool> IncreaseAvailableSeatsAsync(
+        int tripId);
 }

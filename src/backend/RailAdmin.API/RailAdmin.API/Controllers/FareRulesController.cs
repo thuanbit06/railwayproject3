@@ -1,63 +1,129 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.Models;
+using RailAdmin.API.DTOs.Request.FareRule;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
-[Route("api/admin/fare-rules")]
+[Route("api/fare-rules")]
 [Authorize(Roles = "Admin")]
 public class FareRulesController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly IFareRuleService _service;
 
-    public FareRulesController(AppDbContext db)
+    public FareRulesController(IFareRuleService service)
     {
-        _db = db;
+        _service = service;
     }
 
+    // =========================================================
+    // GET ALL
+    // GET: api/fare-rules
+    // =========================================================
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.FareRules.ToListAsync());
+        var result = await _service.GetAllAsync();
+
+        return Ok(result);
     }
 
+    // =========================================================
+    // GET BY ID
+    // GET: api/fare-rules/5
+    // =========================================================
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var result = await _service.GetByIdAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = $"Fare rule with ID {id} not found."
+            });
+        }
+
+        return Ok(result);
+    }
+
+    // =========================================================
+    // CREATE
+    // POST: api/fare-rules
+    // =========================================================
     [HttpPost]
-    public async Task<IActionResult> Create(FareRule r)
+    public async Task<IActionResult> Create(
+        [FromBody] FareRuleCreateRequest dto)
     {
-        _db.FareRules.Add(r);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            var created = await _service.CreateAsync(dto);
 
-        return Ok(r);
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = created.Id },
+                created
+            );
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, FareRule r)
+    // =========================================================
+    // UPDATE
+    // PUT: api/fare-rules/5
+    // =========================================================
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] FareRuleUpdateRequest dto)
     {
-        if (id != r.Id)
-            return BadRequest();
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        _db.Entry(r).State = EntityState.Modified;
+        var success = await _service.UpdateAsync(id, dto);
 
-        await _db.SaveChangesAsync();
+        if (!success)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = $"Fare rule with ID {id} not found."
+            });
+        }
 
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    // =========================================================
+    // DELETE
+    // DELETE: api/fare-rules/5
+    // =========================================================
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var r = await _db.FareRules.FindAsync(id);
+        var success = await _service.DeleteAsync(id);
 
-        if (r == null)
-            return NotFound();
-
-        _db.FareRules.Remove(r);
-
-        await _db.SaveChangesAsync();
+        if (!success)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = $"Fare rule with ID {id} not found."
+            });
+        }
 
         return NoContent();
     }

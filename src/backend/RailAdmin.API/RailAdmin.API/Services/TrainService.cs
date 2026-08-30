@@ -1,6 +1,5 @@
 ﻿using RailAdmin.API.DTOs.Request.Train;
 using RailAdmin.API.DTOs.Response;
-using RailAdmin.API.Models;
 using RailAdmin.API.Repository.IRepository;
 using RailAdmin.API.Services.IService;
 
@@ -8,59 +7,111 @@ namespace RailAdmin.API.Services;
 
 public class TrainService : ITrainService
 {
-    private readonly ITrainRepository _repo;
-    public TrainService(ITrainRepository repo) { _repo = repo; }
+    private readonly ITrainRepository _repository;
+
+    public TrainService(ITrainRepository repository)
+    {
+        _repository = repository;
+    }
 
     public async Task<IEnumerable<TrainResponse>> GetAllAsync()
     {
-        var list = await _repo.GetAllAsync();
-        return list.Select(MapToResponse);
+        var trains = await _repository.GetAllAsync();
+
+        return trains.Select(MapToResponse);
     }
 
     public async Task<TrainResponse?> GetByIdAsync(int id)
     {
-        var item = await _repo.GetByIdAsync(id);
-        return item == null ? null : MapToResponse(item);
+        var train = await _repository.GetByIdAsync(id);
+
+        return train == null ? null : MapToResponse(train);
     }
 
-    public async Task<TrainResponse> CreateAsync(TrainCreateRequest dto)
+    public async Task<IEnumerable<TrainResponse>> SearchAsync(
+        TrainSearchRequest request)
     {
-        var train = new Train
+        var trains = await _repository.SearchAsync(request);
+
+        return trains.Select(MapToResponse);
+    }
+
+    public async Task<TrainResponse> CreateAsync(
+    TrainCreateRequest request)
+    {
+        var train = new Models.Train
         {
-            TrainNo = dto.TrainNo,
-            TrainName = dto.TrainName,
-            TrainType = dto.TrainType,
-            TotalCoaches = dto.TotalCoaches,
-            IsActive = true,
+            TrainNo = request.TrainNo.Trim(),
+            TrainName = request.TrainName.Trim(),
+            TrainType = request.TrainType?.Trim() ?? string.Empty,
+            TotalCoaches = request.TotalCoaches,
+            IsActive = request.IsActive,
             CreatedAt = DateTime.UtcNow
         };
-        var created = await _repo.CreateAsync(train);
+
+        var created = await _repository.CreateAsync(train);
+
         return MapToResponse(created);
     }
 
-    public async Task<bool> UpdateAsync(int id, TrainUpdateRequest dto)
+    public async Task<bool> UpdateAsync(
+        int id,
+        TrainUpdateRequest request)
     {
-        var train = new Train
-        {
-            Id = id,
-            TrainName = dto.TrainName,
-            TrainType = dto.TrainType,
-            TotalCoaches = dto.TotalCoaches,
-            IsActive = dto.IsActive
-        };
-        return await _repo.UpdateAsync(train);
+        var train = await _repository.GetByIdAsync(id);
+
+        if (train == null)
+            return false;
+
+        train.TrainNo = request.TrainNo;
+        train.TrainName = request.TrainName;
+        train.TrainType = request.TrainType ?? string.Empty;
+        train.TotalCoaches = request.TotalCoaches;
+
+        await _repository.UpdateAsync(train);
+
+        return true;
     }
 
-    public async Task<bool> DeleteAsync(int id) => await _repo.DeleteAsync(id);
-
-    private static TrainResponse MapToResponse(Train t) => new()
+    public async Task<bool> DeleteAsync(int id)
     {
-        Id = t.Id,
-        TrainNo = t.TrainNo,
-        TrainName = t.TrainName,
-        TrainType = t.TrainType,
-        TotalCoaches = t.TotalCoaches,
-        IsActive = t.IsActive,
-        CreatedAt = t.CreatedAt
-    };
+        var train = await _repository.GetByIdAsync(id);
+
+        if (train == null)
+            return false;
+
+        await _repository.DeleteAsync(train);
+
+        return true;
+    }
+
+    public async Task<bool> UpdateStatusAsync(
+    int id,
+    bool isActive)
+    {
+        var train = await _repository.GetByIdAsync(id);
+
+        if (train == null)
+            return false;
+
+        train.IsActive = isActive;
+
+        await _repository.UpdateAsync(train);
+
+        return true;
+    }
+
+    private static TrainResponse MapToResponse(Models.Train train)
+    {
+        return new TrainResponse
+        {
+            Id = train.Id,
+            TrainNo = train.TrainNo,
+            TrainName = train.TrainName,
+            TrainType = train.TrainType,
+            TotalCoaches = train.TotalCoaches,
+            IsActive = train.IsActive,
+            CreatedAt = train.CreatedAt
+        };
+    }
 }

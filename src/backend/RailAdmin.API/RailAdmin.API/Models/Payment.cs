@@ -24,7 +24,7 @@ public class Payment
     public string Method { get; set; } = "Online"; // Cash / Online / Card
 
     [MaxLength(20)]
-    public string Status { get; set; } = "Success"; // Success / Failed / Pending
+    public string Status { get; set; } = "Pending"; // Success / Failed / Pending / Refunded
 
     [MaxLength(100)]
     public string? TransactionId { get; set; }

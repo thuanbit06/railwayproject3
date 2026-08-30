@@ -40,7 +40,15 @@ const Analytics = () => {
 
       const data = await analyticsService.getAnalytics(range);
 
-      setAnalytics(data);
+      setAnalytics({
+        totalRevenue: data.totalRevenue ?? 0,
+        ticketsSold: data.ticketsSold ?? 0,
+        activeUsers: data.activeUsers ?? 0,
+        occupancyRate: data.occupancyRate ?? null,
+        classDistribution: data.classDistribution ?? [],
+        revenue: data.revenue ?? [],
+        ticketVolume: data.ticketVolume ?? [],
+      });
     } catch (err) {
       console.error("Analytics API Error:", err);
 
@@ -142,15 +150,19 @@ const Analytics = () => {
         {stats.map((s, i) => (
           <div
             key={i}
-            className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
-            <div className={`p-3 rounded-xl ${s.bg}`}>
+            className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 min-w-0">
+            <div className={`p-3 rounded-xl flex-shrink-0 ${s.bg}`}>
               <s.icon size={20} className={s.c} />
             </div>
 
-            <div>
-              <p className="text-xs text-gray-500">{s.label}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-gray-500 whitespace-nowrap">
+                {s.label}
+              </p>
 
-              <p className="text-xl font-bold">{loading ? "..." : s.value}</p>
+              <p className="text-lg font-bold break-all leading-tight tracking-tight mt-0.5">
+                {loading ? "..." : s.value}
+              </p>
             </div>
           </div>
         ))}
@@ -270,7 +282,6 @@ const Analytics = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
 
                 <XAxis dataKey="name" fontSize={12} />
-
                 <YAxis fontSize={12} />
 
                 <Tooltip />

@@ -153,7 +153,8 @@ namespace RailAdmin.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PNR");
+                    b.HasIndex("PNR")
+                        .IsUnique();
 
                     b.ToTable("Payments");
                 });
@@ -487,6 +488,12 @@ namespace RailAdmin.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("OTP")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("OTPExpiry")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -568,8 +575,8 @@ namespace RailAdmin.API.Migrations
             modelBuilder.Entity("RailAdmin.API.Models.Payment", b =>
                 {
                     b.HasOne("RailAdmin.API.Models.Booking", "Booking")
-                        .WithMany()
-                        .HasForeignKey("PNR")
+                        .WithOne()
+                        .HasForeignKey("RailAdmin.API.Models.Payment", "PNR")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

@@ -11,4 +11,7 @@ public interface IBookingService
     Task<BookingResponse> CreateAsync(BookingCreateRequest dto);
     Task<bool> UpdateAsync(string pnr, BookingUpdateRequest dto);
     Task<bool> DeleteAsync(string pnr);
+    Task<bool> CancelAsync(
+    string pnr,
+    string reason);
 }

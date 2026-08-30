@@ -9,6 +9,7 @@ public class AuthResponse
     public string Token { get; set; } = string.Empty;
 
     public string Role { get; set; } = string.Empty;
+    public bool RequireOtp { get; set; } = false;
 
     public UserResponse? User { get; set; }
 }

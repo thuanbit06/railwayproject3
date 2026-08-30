@@ -123,10 +123,11 @@ public class AppDbContext : DbContext
 
         // ===== Payment =====
         modelBuilder.Entity<Payment>()
-            .HasOne(x => x.Booking)
-            .WithMany()
-            .HasForeignKey(x => x.PNR)
-            .OnDelete(DeleteBehavior.Cascade);
+     .HasOne(p => p.Booking)
+     .WithOne()
+     .HasForeignKey<Payment>(p => p.PNR)
+     .HasPrincipalKey<Booking>(b => b.PNR)
+     .OnDelete(DeleteBehavior.Cascade);
 
         // ===== Refund =====
         modelBuilder.Entity<Refund>()

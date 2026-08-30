@@ -57,13 +57,27 @@ public class TripStopService : ITripStopService
 
     public async Task<bool> DeleteAsync(int id) => await _repo.DeleteAsync(id);
 
-    private static TripStopResponse MapToResponse(TripStop ts) => new()
+    private static TripStopResponse MapToResponse(TripStop ts)
     {
-        Id = ts.Id,
-        TripId = ts.TripId,
-        StationId = ts.StationId,
-        StopSequence = ts.StopSequence,
-        ArrivalTime = ts.ArrivalTime,
-        DepartureTime = ts.DepartureTime
-    };
+        return new TripStopResponse
+        {
+            Id = ts.Id,
+
+            TripId = ts.TripId,
+
+            StationId = ts.StationId,
+
+            StationCode = ts.Station?.Code ?? string.Empty,
+
+            StationName = ts.Station?.Name ?? string.Empty,
+
+            City = ts.Station?.City ?? string.Empty,
+
+            StopSequence = ts.StopSequence,
+
+            ArrivalTime = ts.ArrivalTime,
+
+            DepartureTime = ts.DepartureTime
+        };
+    }
 }

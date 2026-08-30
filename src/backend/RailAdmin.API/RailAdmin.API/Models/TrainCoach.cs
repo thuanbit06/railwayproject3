@@ -31,5 +31,5 @@ public class TrainCoach
     [ForeignKey(nameof(TrainId))]
     public virtual Train? Train { get; set; }
 
-    public virtual ICollection<Seat>? Seats { get; set; }
+    public virtual ICollection<Seat> Seats { get; set; } = new List<Seat>();
 }
