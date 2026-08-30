@@ -247,15 +247,12 @@ const DashboardHome = () => {
   }
 
   // =========================================================
-  // RENDER
+  // RENDER (GIAO DIỆN ĐÃ ĐƯỢC CHỈNH SỬA CLASS TAILWIND)
   // =========================================================
 
   return (
     <div className="space-y-6">
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-[#0b1c30]">
@@ -288,10 +285,7 @@ const DashboardHome = () => {
         </div>
       </div>
 
-      {/* =====================================================
-          STATISTICS
-      ====================================================== */}
-
+      {/* STATISTICS - SỬA LỖI TRÀN CHỮ */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
         {statsCards.map((item, index) => {
           const Icon = item.icon;
@@ -299,80 +293,85 @@ const DashboardHome = () => {
           return (
             <div
               key={`${item.title}-${index}`}
-              className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm hover:shadow-md transition">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm text-gray-500">{item.title}</p>
+              className="bg-white rounded-2xl border border-[#c3c6d7] p-4 sm:p-5 shadow-sm hover:shadow-md transition flex items-center justify-between gap-3 min-w-0">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                  {item.title}
+                </p>
 
-                  <h3
-                    className={`font-bold text-[#0b1c30] mt-2 truncate ${
-                      item.currency ? "text-2xl" : "text-3xl"
-                    }`}>
-                    {item.currency ? item.value : formatNumber(item.value)}
-                  </h3>
+                <h3
+                  className={`font-bold text-[#0b1c30] mt-1 sm:mt-2 leading-tight tracking-tight break-words ${
+                    item.currency ?
+                      "text-lg sm:text-xl xl:text-2xl"
+                    : "text-2xl sm:text-3xl"
+                  }`}>
+                  {item.currency ? item.value : formatNumber(item.value)}
+                </h3>
 
-                  <p className="text-xs text-emerald-600 mt-2 font-medium">
-                    {item.description}
-                  </p>
-                </div>
+                <p className="text-xs text-emerald-600 mt-1.5 sm:mt-2 font-medium">
+                  {item.description}
+                </p>
+              </div>
 
-                <div
-                  className={`w-12 h-12 rounded-xl ${item.iconBg} flex items-center justify-center shrink-0`}>
-                  <Icon size={24} className={item.iconColor} />
-                </div>
+              <div
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${item.iconBg} flex items-center justify-center shrink-0`}>
+                <Icon size={22} className={item.iconColor} />
               </div>
             </div>
           );
         })}
       </section>
 
-      {/* =====================================================
-          EXTRA DAILY STATS
-      ====================================================== */}
-
+      {/* EXTRA DAILY STATS - SỬA LỖI TRÀN CHỮ */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
               <Calendar size={20} className="text-[#004ac6]" />
             </div>
 
-            <div>
-              <p className="text-xs text-gray-500">Today's Bookings</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-gray-500 whitespace-nowrap">
+                Today's Bookings
+              </p>
 
-              <p className="text-xl font-bold text-[#0b1c30]">
+              <p className="text-lg sm:text-xl font-bold text-[#0b1c30] leading-tight break-words">
                 {formatNumber(data.stats.todayBookings)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
               <Users size={20} className="text-purple-600" />
             </div>
 
-            <div>
-              <p className="text-xs text-gray-500">New Customers Today</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-gray-500 whitespace-nowrap">
+                New Customers Today
+              </p>
 
-              <p className="text-xl font-bold text-[#0b1c30]">
+              <p className="text-lg sm:text-xl font-bold text-[#0b1c30] leading-tight break-words">
                 {formatNumber(data.stats.newCustomers)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-[#c3c6d7] p-5 shadow-sm min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
               <AlertTriangle size={20} className="text-orange-500" />
             </div>
 
-            <div>
-              <p className="text-xs text-gray-500">Waiting Bookings</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-gray-500 whitespace-nowrap">
+                Waiting Bookings
+              </p>
 
-              <p className="text-xl font-bold text-[#0b1c30]">
+              <p className="text-lg sm:text-xl font-bold text-[#0b1c30] leading-tight break-words">
                 {formatNumber(data.stats.waitingBookings)}
               </p>
             </div>
@@ -380,13 +379,9 @@ const DashboardHome = () => {
         </div>
       </section>
 
-      {/* =====================================================
-          CHARTS
-      ====================================================== */}
-
+      {/* CHARTS */}
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* REVENUE */}
-
         <div className="xl:col-span-2 bg-white rounded-2xl border border-[#c3c6d7] shadow-sm p-5 lg:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>
@@ -399,7 +394,7 @@ const DashboardHome = () => {
               </p>
             </div>
 
-            <div className="px-3 py-2 rounded-lg bg-[#eff4ff] text-xs font-semibold text-[#004ac6]">
+            <div className="px-3 py-2 rounded-lg bg-[#eff4ff] text-xs font-semibold text-[#004ac6] self-start sm:self-auto">
               Last 7 Days
             </div>
           </div>
@@ -482,7 +477,6 @@ const DashboardHome = () => {
         </div>
 
         {/* TICKET STATUS */}
-
         <div className="bg-white rounded-2xl border border-[#c3c6d7] shadow-sm p-5 lg:p-6">
           <h3 className="text-lg font-bold text-[#0b1c30]">Ticket Status</h3>
 
@@ -506,8 +500,11 @@ const DashboardHome = () => {
                       dataKey="value"
                       fill="#004ac6"
                       stroke="#ffffff"
-                      strokeWidth={2}
-                    />
+                      strokeWidth={2}>
+                      {data.distribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
                   </PieChart>
                 </ResponsiveContainer>
 
@@ -549,10 +546,7 @@ const DashboardHome = () => {
         </div>
       </section>
 
-      {/* =====================================================
-          QUICK ACTIONS
-      ====================================================== */}
-
+      {/* QUICK ACTIONS */}
       <section className="bg-white rounded-2xl border border-[#c3c6d7] shadow-sm p-5 lg:p-6">
         <div className="mb-5">
           <h3 className="text-lg font-bold text-[#0b1c30]">Quick Actions</h3>
@@ -571,7 +565,7 @@ const DashboardHome = () => {
               <Train size={21} className="text-[#004ac6]" />
             </div>
 
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm text-[#0b1c30]">
                 Manage Trains
               </p>
@@ -588,7 +582,7 @@ const DashboardHome = () => {
               <Calendar size={21} className="text-orange-500" />
             </div>
 
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm text-[#0b1c30]">
                 Reservations
               </p>
@@ -605,7 +599,7 @@ const DashboardHome = () => {
               <Ticket size={21} className="text-purple-600" />
             </div>
 
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm text-[#0b1c30]">Tickets</p>
 
               <p className="text-xs text-gray-500 mt-1">View issued tickets</p>
