@@ -29,20 +29,88 @@ public class RefundService : IRefundService
         return item == null ? null : MapToResponse(item);
     }
 
-    public async Task<RefundResponse> CreateAsync(RefundCreateRequest dto)
+    public async Task<RefundResponse> CreateAsync(
+    RefundCreateRequest dto)
     {
-        decimal refundAmount = dto.AmountPaid - dto.CancellationFee;
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (dto.TicketId <= 0)
+        {
+            throw new ArgumentException(
+                "Ticket ID must be greater than 0.",
+                nameof(dto.TicketId));
+        }
+
+        if (dto.AmountPaid < 0)
+        {
+            throw new ArgumentException(
+                "AmountPaid cannot be negative.",
+                nameof(dto.AmountPaid));
+        }
+
+        if (dto.CancellationFee < 0)
+        {
+            throw new ArgumentException(
+                "CancellationFee cannot be negative.",
+                nameof(dto.CancellationFee));
+        }
+
+        // =====================================================
+        // CHECK EXISTING REFUND
+        // =====================================================
+
+        var existing =
+            await _repo.GetByTicketIdAsync(dto.TicketId);
+
+        if (existing != null)
+        {
+            throw new InvalidOperationException(
+                $"A refund already exists for Ticket {dto.TicketId}.");
+        }
+
+        // =====================================================
+        // CALCULATE REFUND
+        // =====================================================
+
+        var refundAmount =
+            dto.AmountPaid - dto.CancellationFee;
+
+        if (refundAmount < 0)
+        {
+            refundAmount = 0;
+        }
+
+        // =====================================================
+        // CREATE REFUND
+        // =====================================================
+
         var refund = new Refund
         {
-            TicketId = dto.TicketId,
-            CancellationRuleId = dto.CancellationRuleId,
-            AmountPaid = dto.AmountPaid,
-            CancellationFee = dto.CancellationFee,
-            RefundAmount = refundAmount > 0 ? refundAmount : 0,
-            RefundStatus = "PROCESSED",
-            RefundDate = DateTime.UtcNow
+            TicketId =
+                dto.TicketId,
+
+            CancellationRuleId =
+                dto.CancellationRuleId,
+
+            AmountPaid =
+                dto.AmountPaid,
+
+            CancellationFee =
+                dto.CancellationFee,
+
+            RefundAmount =
+                refundAmount,
+
+            RefundStatus =
+                "PROCESSED",
+
+            RefundDate =
+                DateTime.UtcNow
         };
-        var created = await _repo.CreateAsync(refund);
+
+        var created =
+            await _repo.CreateAsync(refund);
+
         return MapToResponse(created);
     }
 

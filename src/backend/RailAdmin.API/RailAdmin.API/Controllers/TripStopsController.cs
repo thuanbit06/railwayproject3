@@ -1,24 +1,24 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RailAdmin.API.DTOs.Request.Station;
+using RailAdmin.API.DTOs.Request.TripStop;
 using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
 [ApiController]
-[Route("api/stations")]
+[Route("api/trip-stops")]
 [Authorize(Roles = "Admin")]
-public class StationsController : ControllerBase
+public class TripStopsController : ControllerBase
 {
-    private readonly IStationService _service;
+    private readonly ITripStopService _service;
 
-    public StationsController(IStationService service)
+    public TripStopsController(ITripStopService service)
     {
         _service = service;
     }
 
     // =========================================================
-    // GET: api/stations
+    // GET: api/trip-stops
     // =========================================================
 
     [HttpGet]
@@ -30,7 +30,19 @@ public class StationsController : ControllerBase
     }
 
     // =========================================================
-    // GET: api/stations/5
+    // GET: api/trip-stops/trip/5
+    // =========================================================
+
+    [HttpGet("trip/{tripId:int}")]
+    public async Task<IActionResult> GetByTripId(int tripId)
+    {
+        var result = await _service.GetByTripIdAsync(tripId);
+
+        return Ok(result);
+    }
+
+    // =========================================================
+    // GET: api/trip-stops/5
     // =========================================================
 
     [HttpGet("{id:int}")]
@@ -43,7 +55,7 @@ public class StationsController : ControllerBase
             return NotFound(new
             {
                 success = false,
-                message = $"Station with ID {id} not found."
+                message = $"Trip stop with ID {id} not found."
             });
         }
 
@@ -51,12 +63,12 @@ public class StationsController : ControllerBase
     }
 
     // =========================================================
-    // POST: api/stations
+    // POST: api/trip-stops
     // =========================================================
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        [FromBody] StationCreateRequest dto)
+        [FromBody] TripStopCreateRequest dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -71,13 +83,13 @@ public class StationsController : ControllerBase
     }
 
     // =========================================================
-    // PUT: api/stations/5
+    // PUT: api/trip-stops/5
     // =========================================================
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
         int id,
-        [FromBody] StationUpdateRequest dto)
+        [FromBody] TripStopUpdateRequest dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -89,7 +101,7 @@ public class StationsController : ControllerBase
             return NotFound(new
             {
                 success = false,
-                message = $"Station with ID {id} not found."
+                message = $"Trip stop with ID {id} not found."
             });
         }
 
@@ -97,7 +109,7 @@ public class StationsController : ControllerBase
     }
 
     // =========================================================
-    // DELETE: api/stations/5
+    // DELETE: api/trip-stops/5
     // =========================================================
 
     [HttpDelete("{id:int}")]
@@ -110,7 +122,7 @@ public class StationsController : ControllerBase
             return NotFound(new
             {
                 success = false,
-                message = $"Station with ID {id} not found."
+                message = $"Trip stop with ID {id} not found."
             });
         }
 

@@ -45,4 +45,44 @@ public class TripRepository : ITripRepository
         await _db.SaveChangesAsync();
         return true;
     }
+    public async Task<bool> DecreaseAvailableSeatsAsync(
+    int tripId)
+    {
+        var trip =
+            await _db.Trips
+                .FirstOrDefaultAsync(
+                    t => t.Id == tripId);
+
+        if (trip == null)
+            return false;
+
+        if (trip.AvailableSeats <= 0)
+            return false;
+
+        trip.AvailableSeats--;
+
+        await _db.SaveChangesAsync();
+
+        return true;
+    }
+    public async Task<bool> IncreaseAvailableSeatsAsync(
+    int tripId)
+    {
+        var trip =
+            await _db.Trips
+                .FirstOrDefaultAsync(
+                    t => t.Id == tripId);
+
+        if (trip == null)
+            return false;
+
+        if (trip.AvailableSeats < trip.TotalCapacity)
+        {
+            trip.AvailableSeats++;
+        }
+
+        await _db.SaveChangesAsync();
+
+        return true;
+    }
 }

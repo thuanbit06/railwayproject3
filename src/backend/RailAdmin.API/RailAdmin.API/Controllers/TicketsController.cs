@@ -7,7 +7,7 @@ namespace RailAdmin.API.Controllers;
 
 [ApiController]
 [Route("api/tickets")]
-[Authorize(Roles = "User")]
+[Authorize(Roles = "Admin")]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class TicketsController : ControllerBase
 {

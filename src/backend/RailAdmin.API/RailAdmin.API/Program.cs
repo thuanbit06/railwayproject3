@@ -117,10 +117,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins(
-                "[http://localhost:5173](http://localhost:5173)",
-                "[http://localhost:5175](http://localhost:5175)"
-            )
+            .WithOrigins("http://localhost:5173", "http://localhost:5175")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -144,6 +141,7 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
 builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 
 
@@ -168,6 +166,14 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 
 var app = builder.Build();
+
+var supportedCultures = new[] { new System.Globalization.CultureInfo("en-US") };
+app.UseRequestLocalization(new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("en-US"),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
 
 
 // =========================================================
@@ -206,4 +212,4 @@ using (var scope = app.Services.CreateScope())
         app.Configuration);
 }
 
-app.Run();
+    app.Run();
