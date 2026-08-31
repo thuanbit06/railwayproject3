@@ -8,7 +8,6 @@ namespace RailAdmin.API.Repository;
 public class SeatRepository : ISeatRepository
 {
     private readonly AppDbContext _db;
-    public SeatRepository(AppDbContext db) { _db = db; }
 
     public async Task<IEnumerable<Seat>> GetAllAsync()
         => await _db.Seats
@@ -29,6 +28,48 @@ public class SeatRepository : ISeatRepository
         => await _db.Seats
         .AsNoTracking()
         .FirstOrDefaultAsync(s => s.Id == id);
+    {
+        return await _db.Seats
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == id);
+    }
+
+    // =========================================================
+    // CHECK COACH
+    // =========================================================
+
+    public async Task<bool> CoachExistsAsync(int coachId)
+    {
+        return await _db.TrainCoaches
+            .AnyAsync(c => c.Id == coachId);
+    }
+
+    // =========================================================
+    // CHECK SEAT NUMBER
+    // =========================================================
+
+    public async Task<bool> SeatNoExistsAsync(
+        int coachId,
+        string seatNo,
+        int? excludeId = null)
+    {
+        var query = _db.Seats
+            .Where(s =>
+                s.CoachId == coachId &&
+                s.SeatNo == seatNo);
+
+        if (excludeId.HasValue)
+        {
+            query = query.Where(
+                s => s.Id != excludeId.Value);
+        }
+
+        return await query.AnyAsync();
+    }
+
+    // =========================================================
+    // CREATE
+    // =========================================================
 
     public async Task<Seat> CreateAsync(Seat seat)
     {
@@ -36,6 +77,10 @@ public class SeatRepository : ISeatRepository
         await _db.SaveChangesAsync();
         return seat;
     }
+
+    // =========================================================
+    // UPDATE
+    // =========================================================
 
     public async Task<bool> UpdateAsync(Seat seat)
     {
@@ -47,12 +92,23 @@ public class SeatRepository : ISeatRepository
         return true;
     }
 
+    // =========================================================
+    // DELETE
+    // =========================================================
+
     public async Task<bool> DeleteAsync(int id)
     {
-        var item = await _db.Seats.FirstOrDefaultAsync(s => s.Id == id);
-        if (item == null) return false;
+        var item =
+            await _db.Seats
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (item == null)
+            return false;
+
         _db.Seats.Remove(item);
+
         await _db.SaveChangesAsync();
+
         return true;
     }
 

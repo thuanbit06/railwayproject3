@@ -7,40 +7,240 @@ namespace RailAdmin.API.Controllers;
 
 [ApiController]
 [Route("api/payments")]
-[Authorize(Roles = "Admin")]
-public class PaymentsController : ControllerBase
+[Authorize]
+public class PaymentController : ControllerBase
 {
-    private readonly IPaymentService _service;
-    public PaymentsController(IPaymentService service) { _service = service; }
+    private readonly IPaymentService _paymentService;
 
-    [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
+    public PaymentController(IPaymentService paymentService)
+    {
+        _paymentService = paymentService;
+    }
+
+    // =========================================================
+    // GET ALL
+    // =========================================================
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var payments = await _paymentService.GetAllAsync();
+
+        return Ok(payments);
+    }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var r = await _service.GetByIdAsync(id);
-        if (r == null) return NotFound(new { message = $"Payment {id} not found." });
-        return Ok(r);
+        var payment = await _paymentService.GetByIdAsync(id);
+
+        if (payment == null)
+            return NotFound(new
+            {
+                message = $"Payment with ID {id} was not found."
+            });
+
+        return Ok(payment);
     }
+
+    // =========================================================
+    // GET BY PNR
+    // =========================================================
+
+    [HttpGet("pnr/{pnr}")]
+    public async Task<IActionResult> GetByPNR(string pnr)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            return BadRequest(new
+            {
+                message = "PNR is required."
+            });
+        }
+
+        var payment = await _paymentService.GetByPNRAsync(pnr.Trim());
+
+        if (payment == null)
+        {
+            return NotFound(new
+            {
+                message = $"Payment for PNR '{pnr}' was not found."
+            });
+        }
+
+        return Ok(payment);
+    }
+
+    // =========================================================
+    // CREATE
+    // =========================================================
+
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] PaymentCreateRequest dto)
+    public async Task<IActionResult> Create(
+        [FromBody] PaymentCreateRequest dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-        var c = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = c.Id }, c);
+        try
+        {
+            var payment = await _paymentService.CreateAsync(dto);
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = payment.Id },
+                payment);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
+
+    // =========================================================
+    // UPDATE STATUS
+    // =========================================================
+
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] PaymentUpdateRequest dto)
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] PaymentUpdateRequest dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-        var ok = await _service.UpdateAsync(id, dto);
-        if (!ok) return NotFound(new { message = $"Payment {id} not found." });
-        return NoContent();
+        try
+        {
+            var result =
+                await _paymentService.UpdateAsync(id, dto);
+
+            if (!result)
+            {
+                return NotFound(new
+                {
+                    message = $"Payment with ID {id} was not found."
+                });
+            }
+
+            var payment =
+                await _paymentService.GetByIdAsync(id);
+
+            return Ok(payment);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
+
+    // =========================================================
+    // DELETE
+    // =========================================================
+
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var ok = await _service.DeleteAsync(id);
-        if (!ok) return NotFound(new { message = $"Payment {id} not found." });
-        return NoContent();
+        var result =
+            await _paymentService.DeleteAsync(id);
+
+        if (!result)
+        {
+            return NotFound(new
+            {
+                message = $"Payment with ID {id} was not found."
+            });
+        }
+
+        return Ok(new
+        {
+            message = "Payment deleted successfully."
+        });
+    }
+    // =========================================================
+    // REFUND
+    // PUT: api/payments/pnr/{pnr}/refund
+    // =========================================================
+
+    [HttpPut("pnr/{pnr}/refund")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Refund(
+        string pnr)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            return BadRequest(new
+            {
+                message = "PNR is required."
+            });
+        }
+
+        try
+        {
+            var result =
+                await _paymentService
+                    .RefundAsync(pnr.Trim());
+
+            if (!result)
+            {
+                return NotFound(new
+                {
+                    message =
+                        $"Payment for PNR '{pnr}' was not found."
+                });
+            }
+
+            var payment =
+                await _paymentService
+                    .GetByPNRAsync(pnr.Trim());
+
+            return Ok(payment);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }

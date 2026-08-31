@@ -9,7 +9,6 @@ namespace RailAdmin.API.Services;
 public class SeatService : ISeatService
 {
     private readonly ISeatRepository _repo;
-    public SeatService(ISeatRepository repo) { _repo = repo; }
 
     public async Task<IEnumerable<SeatResponse>> GetAllAsync()
     {
@@ -22,6 +21,10 @@ public class SeatService : ISeatService
         var list = await _repo.GetByCoachIdAsync(coachId);
         return list.Select(MapToResponse);
     }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
 
     public async Task<SeatResponse?> GetByIdAsync(int id)
     {
@@ -37,19 +40,104 @@ public class SeatService : ISeatService
         { 
             CoachId = dto.CoachId, 
             SeatNo = dto.SeatNo.Trim() 
+        // -----------------------------------------------------
+        // Check Coach
+        // -----------------------------------------------------
+
+        var coachExists =
+            await _repo.CoachExistsAsync(dto.CoachId);
+
+        if (!coachExists)
+        {
+            throw new KeyNotFoundException(
+                $"Coach with ID {dto.CoachId} not found.");
+        }
+
+        // -----------------------------------------------------
+        // Normalize SeatNo
+        // -----------------------------------------------------
+
+        var seatNo = dto.SeatNo.Trim().ToUpper();
+
+        // -----------------------------------------------------
+        // Check duplicate
+        // -----------------------------------------------------
+
+        var exists =
+            await _repo.SeatNoExistsAsync(
+                dto.CoachId,
+                seatNo);
+
+        if (exists)
+        {
+            throw new InvalidOperationException(
+                $"Seat number '{seatNo}' already exists in this coach.");
+        }
+
+        // -----------------------------------------------------
+        // Create
+        // -----------------------------------------------------
+
+        var seat = new Seat
+        {
+            CoachId = dto.CoachId,
+            SeatNo = seatNo
         };
         var created = await _repo.CreateAsync(seat); 
         return MapToResponse(created); 
+
+        var created =
+            await _repo.CreateAsync(seat);
+
+        return MapToResponse(created);
     }
 
     public async Task<bool> UpdateAsync(int id, SeatUpdateRequest dto)
     {
         if (id <= 0) return false; 
         if (string.IsNullOrWhiteSpace(dto.SeatNo)) return false;
+    // =========================================================
+    // UPDATE
+    // =========================================================
+
+    public async Task<bool> UpdateAsync(
+        int id,
+        SeatUpdateRequest dto)
+    {
+        var existing =
+            await _repo.GetByIdAsync(id);
+
+        if (existing == null)
+            return false;
+
+        var seatNo =
+            dto.SeatNo.Trim().ToUpper();
+
+        // -----------------------------------------------------
+        // Check duplicate
+        // -----------------------------------------------------
+
+        var exists =
+            await _repo.SeatNoExistsAsync(
+                existing.CoachId,
+                seatNo,
+                id);
+
+        if (exists)
+        {
+            throw new InvalidOperationException(
+                $"Seat number '{seatNo}' already exists in this coach.");
+        }
+
+        // -----------------------------------------------------
+        // Update
+        // -----------------------------------------------------
+
         var seat = new Seat
         {
             Id = id,
-            SeatNo = dto.SeatNo
+            CoachId = existing.CoachId,
+            SeatNo = seatNo
         };
         return await _repo.UpdateAsync(seat);
     }

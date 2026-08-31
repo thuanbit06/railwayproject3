@@ -23,6 +23,10 @@ public class RefundRepository : IRefundRepository
             .ToListAsync();
     }
 
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
     public async Task<Refund?> GetByIdAsync(int id)
     {
         return await _db.Refunds
@@ -49,6 +53,8 @@ public class RefundRepository : IRefundRepository
     public async Task<Refund> CreateAsync(
         Refund refund)
     {
+        ArgumentNullException.ThrowIfNull(refund);
+
         _db.Refunds.Add(refund);
 
         await _db.SaveChangesAsync();
@@ -59,6 +65,11 @@ public class RefundRepository : IRefundRepository
     public async Task<bool> UpdateStatusAsync(
         int id,
         string status)
+    // =========================================================
+    // UPDATE
+    // =========================================================
+
+    public async Task<bool> UpdateAsync(Refund refund)
     {
         var existing =
             await _db.Refunds
@@ -71,10 +82,44 @@ public class RefundRepository : IRefundRepository
 
         existing.RefundStatus = status;
 
+        ArgumentNullException.ThrowIfNull(refund);
+
+        var existing =
+            await _db.Refunds
+                .FirstOrDefaultAsync(
+                    r => r.Id == refund.Id);
+
+        if (existing == null)
+        {
+            return false;
+        }
+
+        existing.CancellationRuleId =
+            refund.CancellationRuleId;
+
+        existing.AmountPaid =
+            refund.AmountPaid;
+
+        existing.CancellationFee =
+            refund.CancellationFee;
+
+        existing.RefundAmount =
+            refund.RefundAmount;
+
+        existing.RefundStatus =
+            refund.RefundStatus;
+
+        existing.RefundDate =
+            refund.RefundDate;
+
         await _db.SaveChangesAsync();
 
         return true;
     }
+
+    // =========================================================
+    // DELETE
+    // =========================================================
 
     public async Task<bool> DeleteAsync(int id)
     {

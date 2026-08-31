@@ -126,7 +126,6 @@ builder.Services.AddCors(options =>
 });
 
 
-
 // Repositories
 builder.Services.AddScoped<IStationRepository, StationRepository>();
 builder.Services.AddScoped<ITrainRepository, TrainRepository>();
@@ -142,6 +141,8 @@ builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
+builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Services
 builder.Services.AddScoped<IStationService, StationService>();
@@ -164,6 +165,14 @@ builder.Services.AddScoped<IRefundService, RefundService>();
 
 
 var app = builder.Build();
+
+var supportedCultures = new[] { new System.Globalization.CultureInfo("en-US") };
+app.UseRequestLocalization(new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("en-US"),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
 
 
 // =========================================================

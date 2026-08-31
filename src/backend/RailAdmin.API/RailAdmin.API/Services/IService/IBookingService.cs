@@ -13,4 +13,7 @@ public interface IBookingService
     Task<bool> DeleteAsync(string pnr);
     Task<bool> CancelAsync(string pnr);
     Task<bool> UpdateStatusAsync(string pnr, BookingUpdateRequest dto);
+    Task<bool> CancelAsync(
+    string pnr,
+    string reason);
 }

@@ -25,4 +25,6 @@ public class User
     public string Role { get; set; } = "User"; // User / Admin
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? OTP { get; set; }
+    public DateTime? OTPExpiry { get; set; }
 }

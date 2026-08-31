@@ -27,7 +27,7 @@ namespace RailAdmin.API.Models
         public decimal TotalAmount { get; set; }
 
         [MaxLength(20)]
-        public string BookingStatus { get; set; } = "Confirmed"; // Confirmed / PartiallyCancelled / Cancelled
+        public string BookingStatus { get; set; } = "Pending"; // Confirmed / PartiallyCancelled / Cancelled
 
         public DateTime BookingDate { get; set; } = DateTime.UtcNow;
 
