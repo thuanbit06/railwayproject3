@@ -2,6 +2,7 @@
 using RailAdmin.API.Data;
 using RailAdmin.API.Models;
 using RailAdmin.API.Repository.IRepository;
+using System.Net.Sockets;
 
 namespace RailAdmin.API.Repository;
 
@@ -13,10 +14,6 @@ public class RefundRepository : IRefundRepository
     {
         _db = db;
     }
-
-    // =========================================================
-    // GET ALL
-    // =========================================================
 
     public async Task<IEnumerable<Refund>> GetAllAsync()
     {
@@ -37,11 +34,8 @@ public class RefundRepository : IRefundRepository
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
-    // =========================================================
-    // GET BY TICKET
-    // =========================================================
-
-    public async Task<Refund?> GetByTicketIdAsync(int ticketId)
+    public async Task<Refund?> GetByTicketIdAsync(
+        int ticketId)
     {
         return await _db.Refunds
             .AsNoTracking()
@@ -49,11 +43,15 @@ public class RefundRepository : IRefundRepository
                 r => r.TicketId == ticketId);
     }
 
-    // =========================================================
-    // CREATE
-    // =========================================================
+    public async Task<bool> ExistsForTicketAsync(
+        int ticketId)
+    {
+        return await _db.Refunds
+            .AnyAsync(r => r.TicketId == ticketId);
+    }
 
-    public async Task<Refund> CreateAsync(Refund refund)
+    public async Task<Refund> CreateAsync(
+        Refund refund)
     {
         ArgumentNullException.ThrowIfNull(refund);
 
@@ -64,12 +62,26 @@ public class RefundRepository : IRefundRepository
         return refund;
     }
 
+    public async Task<bool> UpdateStatusAsync(
+        int id,
+        string status)
     // =========================================================
     // UPDATE
     // =========================================================
 
     public async Task<bool> UpdateAsync(Refund refund)
     {
+        var existing =
+            await _db.Refunds
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (existing == null)
+        {
+            return false;
+        }
+
+        existing.RefundStatus = status;
+
         ArgumentNullException.ThrowIfNull(refund);
 
         var existing =
@@ -111,20 +123,32 @@ public class RefundRepository : IRefundRepository
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var item =
+        var refund =
             await _db.Refunds
-                .FirstOrDefaultAsync(
-                    r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == id);
 
-        if (item == null)
+        if (refund == null)
         {
             return false;
         }
 
-        _db.Refunds.Remove(item);
+        _db.Refunds.Remove(refund);
 
         await _db.SaveChangesAsync();
 
+        return true;
+    }
+
+    public async Task<bool> UpdateAsync(Refund refund)
+    {
+        //var existing = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticket.Id);
+        //if (existing == null) return false;
+        //existing.SeatId = ticket.SeatId;
+        //existing.Status = ticket.Status;
+        //existing.CancelReason = ticket.CancelReason;
+        //if (ticket.Status == "Cancelled" && existing.CancelledAt == null)
+        //    existing.CancelledAt = DateTime.UtcNow;
+        //await _db.SaveChangesAsync();
         return true;
     }
 }

@@ -9,43 +9,25 @@ public class SeatRepository : ISeatRepository
 {
     private readonly AppDbContext _db;
 
-    public SeatRepository(AppDbContext db)
-    {
-        _db = db;
-    }
-
-    // =========================================================
-    // GET ALL
-    // =========================================================
-
     public async Task<IEnumerable<Seat>> GetAllAsync()
-    {
-        return await _db.Seats
-            .AsNoTracking()
-            .OrderBy(s => s.CoachId)
-            .ThenBy(s => s.SeatNo)
-            .ToListAsync();
-    }
+        => await _db.Seats
+        .AsNoTracking()
+        .OrderBy(s => s.CoachId)
+        .ThenBy(s => s.SeatNo)
+        .ToListAsync();
 
-    // =========================================================
-    // GET BY COACH
-    // =========================================================
-
-    public async Task<IEnumerable<Seat>> GetByCoachIdAsync(
-        int coachId)
-    {
-        return await _db.Seats
-            .AsNoTracking()
-            .Where(s => s.CoachId == coachId)
-            .OrderBy(s => s.SeatNo)
-            .ToListAsync();
-    }
-
-    // =========================================================
-    // GET BY ID
-    // =========================================================
+    public async Task<IEnumerable<Seat>> GetByCoachIdAsync(int coachId)
+        => await _db.Seats
+        .AsNoTracking()
+        .OrderBy(s => s.CoachId)
+        .ThenBy(s => s.SeatNo)
+        .Where(s => s.CoachId == coachId)
+        .ToListAsync();
 
     public async Task<Seat?> GetByIdAsync(int id)
+        => await _db.Seats
+        .AsNoTracking()
+        .FirstOrDefaultAsync(s => s.Id == id);
     {
         return await _db.Seats
             .AsNoTracking()
@@ -92,9 +74,7 @@ public class SeatRepository : ISeatRepository
     public async Task<Seat> CreateAsync(Seat seat)
     {
         _db.Seats.Add(seat);
-
         await _db.SaveChangesAsync();
-
         return seat;
     }
 
@@ -104,17 +84,11 @@ public class SeatRepository : ISeatRepository
 
     public async Task<bool> UpdateAsync(Seat seat)
     {
-        var existing =
-            await _db.Seats
-                .FirstOrDefaultAsync(s => s.Id == seat.Id);
-
-        if (existing == null)
-            return false;
-
+        var existing = await _db.Seats
+            .FirstOrDefaultAsync(s => s.Id == seat.Id);
+        if (existing == null) return false;
         existing.SeatNo = seat.SeatNo;
-
         await _db.SaveChangesAsync();
-
         return true;
     }
 
@@ -136,5 +110,26 @@ public class SeatRepository : ISeatRepository
         await _db.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<bool> IsAvailableAsync(int seatId) 
+    { 
+        return !await _db.Tickets
+            .AsNoTracking()
+            .AnyAsync(t => t.SeatId == seatId && t.Status == "Confirmed"); 
+    }
+    public async Task<bool> IsOwnedByTicketAsync(int seatId, int ticketId) 
+    {
+        return await _db.Tickets
+            .AsNoTracking()
+            .AnyAsync(t => t.Id == ticketId && t.SeatId == seatId && t.Status == "Confirmed"); 
+    }
+
+    public async Task<bool> ReleaseAsync(int seatId)
+    {
+        var seat = await _db.Seats
+            .FirstOrDefaultAsync(s => s.Id == seatId);
+
+        return seat != null;
     }
 }

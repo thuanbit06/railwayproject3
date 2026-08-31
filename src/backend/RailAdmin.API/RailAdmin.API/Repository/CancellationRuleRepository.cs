@@ -15,52 +15,42 @@ public class CancellationRuleRepository
         _db = db;
     }
 
-    // =========================================================
-    // GET ALL
-    // =========================================================
-
-    public async Task<IEnumerable<CancellationRule>>
-        GetAllAsync()
+    public async Task<IEnumerable<CancellationRule>> GetAllAsync()
     {
         return await _db.CancellationRules
             .AsNoTracking()
-            .OrderBy(r => r.HoursBeforeDeparture)
+            .OrderByDescending(r => r.HoursBeforeDeparture)
             .ToListAsync();
     }
 
-    // =========================================================
-    // GET BY ID
-    // =========================================================
-
-    public async Task<CancellationRule?> GetByIdAsync(
-        int id)
+    public async Task<CancellationRule?> GetByIdAsync(int id)
     {
         return await _db.CancellationRules
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
-    // =========================================================
-    // GET APPLICABLE RULE
-    // =========================================================
-
-    public async Task<CancellationRule?>
-        GetApplicableRuleAsync(
-            int hoursBeforeDeparture)
+    public async Task<CancellationRule?> GetApplicableRuleAsync(
+        int hoursBeforeDeparture)
     {
         return await _db.CancellationRules
             .AsNoTracking()
             .Where(r =>
-                r.HoursBeforeDeparture
-                <= hoursBeforeDeparture)
-            .OrderByDescending(r =>
-                r.HoursBeforeDeparture)
+                r.HoursBeforeDeparture <= hoursBeforeDeparture)
+            .OrderByDescending(r => r.HoursBeforeDeparture)
             .FirstOrDefaultAsync();
     }
 
-    // =========================================================
-    // CREATE
-    // =========================================================
+    public async Task<bool> ExistsAtHoursAsync(
+        int hoursBeforeDeparture,
+        int? excludeId = null)
+    {
+        return await _db.CancellationRules
+            .AnyAsync(r =>
+                r.HoursBeforeDeparture == hoursBeforeDeparture
+                &&
+                (!excludeId.HasValue || r.Id != excludeId.Value));
+    }
 
     public async Task<CancellationRule> CreateAsync(
         CancellationRule rule)
@@ -72,17 +62,11 @@ public class CancellationRuleRepository
         return rule;
     }
 
-    // =========================================================
-    // UPDATE
-    // =========================================================
-
     public async Task<bool> UpdateAsync(
         CancellationRule rule)
     {
-        var existing =
-            await _db.CancellationRules
-                .FirstOrDefaultAsync(
-                    r => r.Id == rule.Id);
+        var existing = await _db.CancellationRules
+            .FirstOrDefaultAsync(r => r.Id == rule.Id);
 
         if (existing == null)
         {
@@ -112,17 +96,15 @@ public class CancellationRuleRepository
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var item =
-            await _db.CancellationRules
-                .FirstOrDefaultAsync(
-                    r => r.Id == id);
+        var rule = await _db.CancellationRules
+            .FirstOrDefaultAsync(r => r.Id == id);
 
-        if (item == null)
+        if (rule == null)
         {
             return false;
         }
 
-        _db.CancellationRules.Remove(item);
+        _db.CancellationRules.Remove(rule);
 
         await _db.SaveChangesAsync();
 

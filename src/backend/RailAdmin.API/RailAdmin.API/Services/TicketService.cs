@@ -992,4 +992,67 @@ public class TicketService : ITicketService
                 ticket.CancelledAt
         };
     }
+
+    public async Task<bool> CancelAsync(
+        int ticketId,
+        string reason)
+    {
+        var ticket =
+            await _ticketRepository.GetByIdAsync(ticketId);
+
+        if (ticket == null)
+            return false;
+
+        // Không cho cancel lần 2
+        if (ticket.Status == "Cancelled")
+            return false;
+
+        // Chỉ Confirmed mới được cancel
+        if (ticket.Status != "Confirmed")
+            return false;
+
+        ticket.Status = "Cancelled";
+        ticket.CancelReason = reason;
+        ticket.CancelledAt = DateTime.UtcNow;
+
+        return await _ticketRepository.UpdateAsync(ticket);
+    }
+
+    public async Task<bool> IsCancellableAsync(
+        int ticketId)
+    {
+        var ticket =
+            await _ticketRepository.GetByIdAsync(ticketId);
+
+        if (ticket == null)
+            return false;
+
+        return ticket.Status == "Confirmed";
+    }
+
+    public async Task<TicketResponse?> GetCancellationContextAsync(int ticketId)
+    {
+        var ticket = await _ticketRepository
+            .GetByIdWithBookingAndTripAsync(ticketId);
+
+        if (ticket == null)
+            return null;
+
+        var booking = ticket.Booking;
+
+        if (booking == null)
+            throw new Exception("Booking not found.");
+
+        var trip = booking.Trip;
+
+        if (trip == null)
+            throw new Exception("Trip not found.");
+
+        Console.WriteLine($"Ticket: {ticket.Id}");
+        Console.WriteLine($"PNR: {ticket.PNR}");
+        Console.WriteLine($"Trip: {trip.Id}");
+        Console.WriteLine($"Departure: {trip.DepartureTime}");
+
+        return MapToResponse(ticket);
+    }
 }

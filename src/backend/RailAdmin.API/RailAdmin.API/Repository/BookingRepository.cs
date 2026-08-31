@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RailAdmin.API.Data;
+using RailAdmin.API.Data.Constants;
 using RailAdmin.API.Models;
 using RailAdmin.API.Repository.IRepository;
 

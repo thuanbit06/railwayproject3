@@ -4,6 +4,7 @@ namespace RailAdmin.API.Repository.IRepository;
 
 public interface ITicketRepository
 {
+    Task<Ticket?> GetByIdWithBookingAsync(int ticketId);
     Task<IEnumerable<Ticket>> GetAllAsync();
 
     Task<IEnumerable<Ticket>> GetByPNRAsync(string pnr);
@@ -39,4 +40,7 @@ public interface ITicketRepository
     Task<bool> CancelAllByPNRAsync(
     string pnr,
     string reason);
+    Task<bool> CancelAsync(int ticketId,string? cancelReason,DateTime cancelledAt);
+    Task<bool> ReleaseSeatAsync(int seatId);
+    Task<Ticket?> GetByIdWithBookingAndTripAsync(int id);
 }

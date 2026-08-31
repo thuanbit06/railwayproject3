@@ -3,13 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RailAdmin.API.Data;
-using RailAdmin.API.Repository;
 using RailAdmin.API.Repository.IRepository;
-using RailAdmin.API.Services.IRepository;
-using RailAdmin.API.Services.IService;
-using RailAdmin.API.Services.Repository;
 using RailAdmin.API.Services;
+using RailAdmin.API.Services.IService;
 using System.Text;
+using RailAdmin.API.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,7 +115,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5175")
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5175"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -143,8 +144,6 @@ builder.Services.AddScoped<IWaitListRepository, WaitListRepository>();
 builder.Services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-
-
 // Services
 builder.Services.AddScoped<IStationService, StationService>();
 builder.Services.AddScoped<ITrainService, TrainService>();
@@ -161,8 +160,8 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IWaitListService, WaitListService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
-builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<ICancellationService, CancellationService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
 
 
 var app = builder.Build();
@@ -212,4 +211,4 @@ using (var scope = app.Services.CreateScope())
         app.Configuration);
 }
 
-    app.Run();
+app.Run();

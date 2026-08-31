@@ -5,15 +5,12 @@ namespace RailAdmin.API.Services.IService;
 
 public interface ICancellationRuleService
 {
-    Task<IEnumerable<CancellationRuleResponse>>
-        GetAllAsync();
+    Task<IEnumerable<CancellationRuleResponse>> GetAllAsync();
 
-    Task<CancellationRuleResponse?>
-        GetByIdAsync(int id);
+    Task<CancellationRuleResponse?> GetByIdAsync(int id);
 
-    Task<CancellationRuleResponse>
-        CreateAsync(
-            CancellationRuleCreateRequest dto);
+    Task<CancellationRuleResponse> CreateAsync(
+        CancellationRuleCreateRequest dto);
 
     Task<bool> UpdateAsync(
         int id,
@@ -21,8 +18,16 @@ public interface ICancellationRuleService
 
     Task<bool> DeleteAsync(int id);
 
-    Task<CancellationFeeResult>
-        CalculateCancellationFeeAsync(
+    Task<CancellationRuleResponse?>
+        GetApplicableRuleAsync(
+            int hoursBeforeDeparture);
+
+    Task<CancellationCalculationResponse>
+        CalculateCancellationAsync(
             decimal fare,
-            DateTime departureTime);
+            int hoursBeforeDeparture);
+
+    Task<bool>
+        IsCancellationAllowedAsync(
+            int hoursBeforeDeparture);
 }

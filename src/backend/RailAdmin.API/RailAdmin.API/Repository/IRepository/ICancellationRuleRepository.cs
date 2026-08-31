@@ -11,6 +11,10 @@ public interface ICancellationRuleRepository
     Task<CancellationRule?> GetApplicableRuleAsync(
         int hoursBeforeDeparture);
 
+    Task<bool> ExistsAtHoursAsync(
+        int hoursBeforeDeparture,
+        int? excludeId = null);
+
     Task<CancellationRule> CreateAsync(
         CancellationRule rule);
 
@@ -18,4 +22,5 @@ public interface ICancellationRuleRepository
         CancellationRule rule);
 
     Task<bool> DeleteAsync(int id);
+
 }

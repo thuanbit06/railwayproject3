@@ -1,47 +1,177 @@
-﻿//using Microsoft.AspNetCore.Authorization;
-//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
-//using RailAdmin.API.Data;
-//using RailAdmin.API.Models;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using RailAdmin.API.DTOs.Request.CancellationRule;
+using RailAdmin.API.Services.IService;
 
-//namespace RailAdmin.API.Controllers.Admin;
+namespace RailAdmin.API.Controllers;
 
-//[ApiController]
-//[Route("api/admin/cancellation-rules")]
-//[Authorize(Roles = "Admin")] // Chỉ Admin mới được vào
-//public class CancellationRulesController : ControllerBase
-//{
-//    private readonly AppDbContext _db;
-//    public CancellationRulesController(AppDbContext db) => _db = db;
+[ApiController]
+[Route("api/cancellation-rules")]
+[Authorize(Roles = "Admin")]
+public class CancellationRulesController
+    : ControllerBase
+{
+    private readonly ICancellationRuleService
+        _cancellationRuleService;
 
-//    // API 2: Lấy danh sách quy tắc
-//    [HttpGet]
-//    public async Task<IActionResult> GetRules()
-//    {
-//        var rules = await _db.CancellationRules.ToListAsync();
-//        return Ok(rules);
-//    }
+    public CancellationRulesController(
+        ICancellationRuleService cancellationRuleService)
+    {
+        _cancellationRuleService =
+            cancellationRuleService;
+    }
 
-//    // API 2: Tạo quy tắc mới
-//    [HttpPost]
-//    public async Task<IActionResult> CreateRule([FromBody] CancellationRule rule)
-//    {
-//        _db.CancellationRules.Add(rule);
-//        await _db.SaveChangesAsync();
-//        return Ok(rule);
-//    }
+    // =========================================================
+    // GET ALL
+    // =========================================================
 
-//    // API 2: Cập nhật quy tắc
-//    [HttpPut("{id}")]
-//    public async Task<IActionResult> UpdateRule(int id, [FromBody] CancellationRule rule)
-//    {
-//        var existing = await _db.CancellationRules.FindAsync(id);
-//        if (existing == null) return NotFound();
-//        existing.HoursBeforeDeparture = rule.HoursBeforeDeparture;
-//        existing.FeeValue = rule.FeeValue;
-//        existing.CancellationFeeType = rule.CancellationFeeType;
-//        existing.MinFee = rule.MinFee;
-//        await _db.SaveChangesAsync();
-//        return Ok(existing);
-//    }
-//}
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var rules =
+            await _cancellationRuleService.GetAllAsync();
+
+        return Ok(rules);
+    }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var rule =
+            await _cancellationRuleService.GetByIdAsync(id);
+
+        if (rule == null)
+        {
+            return NotFound(new
+            {
+                message =
+                    $"Cancellation rule {id} not found."
+            });
+        }
+
+        return Ok(rule);
+    }
+
+    // =========================================================
+    // GET APPLICABLE RULE
+    // =========================================================
+
+    [HttpGet("applicable")]
+    public async Task<IActionResult> GetApplicableRule(
+        [FromQuery] int hoursBeforeDeparture)
+    {
+        var rule =
+            await _cancellationRuleService
+                .GetApplicableRuleAsync(
+                    hoursBeforeDeparture);
+
+        if (rule == null)
+        {
+            return NotFound(new
+            {
+                message =
+                    "No applicable cancellation rule found."
+            });
+        }
+
+        return Ok(rule);
+    }
+
+    // =========================================================
+    // CREATE
+    // =========================================================
+
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] CancellationRuleCreateRequest dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var created =
+            await _cancellationRuleService
+                .CreateAsync(dto);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = created.Id },
+            created);
+    }
+
+    // =========================================================
+    // UPDATE
+    // =========================================================
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] CancellationRuleUpdateRequest dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var updated =
+            await _cancellationRuleService
+                .UpdateAsync(id, dto);
+
+        if (!updated)
+        {
+            return NotFound(new
+            {
+                message =
+                    $"Cancellation rule {id} not found."
+            });
+        }
+
+        return NoContent();
+    }
+
+    // =========================================================
+    // DELETE
+    // =========================================================
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var deleted =
+            await _cancellationRuleService
+                .DeleteAsync(id);
+
+        if (!deleted)
+        {
+            return NotFound(new
+            {
+                message =
+                    $"Cancellation rule {id} not found."
+            });
+        }
+
+        return NoContent();
+    }
+
+    [HttpPost("calculate")]
+    public async Task<IActionResult> CalculateCancellation(
+    [FromBody] CancellationCalculationRequest dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var result =
+            await _cancellationRuleService
+                .CalculateCancellationAsync(
+                    dto.fare,
+                    dto.hoursBeforeDeparture);
+
+        return Ok(result);
+    }
+}

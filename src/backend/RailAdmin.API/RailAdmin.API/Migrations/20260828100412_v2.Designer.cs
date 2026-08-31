@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RailAdmin.API.Data;
 
@@ -11,9 +12,11 @@ using RailAdmin.API.Data;
 namespace RailAdmin.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828100412_v2")]
+    partial class v2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,8 +159,7 @@ namespace RailAdmin.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PNR")
-                        .IsUnique();
+                    b.HasIndex("PNR");
 
                     b.ToTable("Payments");
                 });
@@ -170,17 +172,17 @@ namespace RailAdmin.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal?>("AmountPaid")
+                    b.Property<decimal>("AmountPaid")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(12,2)");
 
-                    b.Property<decimal?>("CancellationFee")
+                    b.Property<decimal>("CancellationFee")
                         .HasColumnType("decimal(12,2)");
 
                     b.Property<int?>("CancellationRuleId")
                         .HasColumnType("int");
 
-                    b.Property<decimal?>("RefundAmount")
+                    b.Property<decimal>("RefundAmount")
                         .HasColumnType("decimal(12,2)");
 
                     b.Property<DateTime>("RefundDate")
@@ -494,12 +496,6 @@ namespace RailAdmin.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("OTP")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("OTPExpiry")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -562,7 +558,7 @@ namespace RailAdmin.API.Migrations
             modelBuilder.Entity("RailAdmin.API.Models.Booking", b =>
                 {
                     b.HasOne("RailAdmin.API.Models.Trip", "Trip")
-                        .WithMany("Bookings")
+                        .WithMany()
                         .HasForeignKey("TripId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -581,8 +577,8 @@ namespace RailAdmin.API.Migrations
             modelBuilder.Entity("RailAdmin.API.Models.Payment", b =>
                 {
                     b.HasOne("RailAdmin.API.Models.Booking", "Booking")
-                        .WithOne()
-                        .HasForeignKey("RailAdmin.API.Models.Payment", "PNR")
+                        .WithMany()
+                        .HasForeignKey("PNR")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -729,8 +725,6 @@ namespace RailAdmin.API.Migrations
 
             modelBuilder.Entity("RailAdmin.API.Models.Trip", b =>
                 {
-                    b.Navigation("Bookings");
-
                     b.Navigation("Stops");
                 });
 #pragma warning restore 612, 618

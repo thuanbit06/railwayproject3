@@ -10,4 +10,5 @@
     public string Status { get; set; } = string.Empty;
     public string? CancelReason { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public int? TripId { get; set; }
 }

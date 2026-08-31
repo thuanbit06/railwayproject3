@@ -20,4 +20,7 @@ public interface ISeatService
         SeatUpdateRequest dto);
 
     Task<bool> DeleteAsync(int id);
+    Task<bool> ReleaseAsync(int seatId, int ticketId);
+    Task<bool> IsAvailableAsync(int seatId);
+    Task<bool> ReleaseAsync(int seatId);
 }
