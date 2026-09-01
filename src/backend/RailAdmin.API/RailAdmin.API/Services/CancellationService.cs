@@ -135,10 +135,14 @@ public class CancellationService : ICancellationService
     // GET APPLICABLE RULE
     // =========================================================
 
-    public async Task<CancellationRuleResponse?> GetApplicableRuleAsync(
-        int ticketId)
-    {// 1. Lấy ticket
-        var ticket = await _ticketService.GetByIdAsync(ticketId);
+    public async Task<CancellationRuleResponse?> GetApplicableRuleAsync(int ticketId)
+    {
+        if (ticketId <= 0)
+            return null;
+
+        // 1. Lấy ticket kèm Booking + Trip
+        var ticket = await _ticketRepository
+            .GetByIdWithBookingAndTripAsync(ticketId);
 
         if (ticket == null)
             return null;
@@ -152,29 +156,24 @@ public class CancellationService : ICancellationService
             return null;
         }
 
-        // 3. Lấy Trip
-        var trip = ticket.TripId.HasValue? await _tripService.GetByIdAsync(ticket.TripId.Value) : null;
+        // 3. Kiểm tra Booking + Trip
+        if (ticket.Booking == null)
+            return null;
 
+        var trip = ticket.Booking.Trip;
         if (trip == null)
             return null;
 
-        var now = DateTime.UtcNow;
-
-        var hoursBeforeDeparture = (trip.JourneyDate.Date + trip.DepartureTime - now).TotalHours;
-
+        // 4. Tính số giờ còn lại trước giờ khởi hành
+        var departureDateTime = trip.JourneyDate.Date.Add(trip.DepartureTime);
+        var hoursBeforeDeparture = (departureDateTime - DateTime.UtcNow).TotalHours;
 
         if (hoursBeforeDeparture < 0)
             return null;
 
-        var rules = await _ruleRepository.GetAllAsync();
-
-        var applicableRule = rules
-            .Where(r =>
-                r.HoursBeforeDeparture <=
-                hoursBeforeDeparture)
-            .OrderByDescending(
-                r => r.HoursBeforeDeparture)
-            .FirstOrDefault();
+        // 5. Lấy rule phù hợp nhất (dùng method repository đã có)
+        var applicableRule = await _ruleRepository
+            .GetApplicableRuleAsync((int)hoursBeforeDeparture);
 
         return applicableRule == null
             ? null
