@@ -2,6 +2,7 @@
 using RailAdmin.API.DTOs.Request.Refund;
 using RailAdmin.API.DTOs.Response;
 using RailAdmin.API.Models;
+using RailAdmin.API.Repository;
 using RailAdmin.API.Repository.IRepository;
 using RailAdmin.API.Services.IService;
 
@@ -10,24 +11,17 @@ namespace RailAdmin.API.Services;
 public class RefundService : IRefundService
 {
     private readonly IRefundRepository _refundRepository;
-    private readonly ICancellationService _cancellationService;
-    private readonly ITicketService _ticketService;
     private readonly ISeatService _seatService;
+    private readonly ITicketRepository _ticketRepository;
 
     public RefundService(
         IRefundRepository refundRepository,
-          ICancellationService cancellationService,
-        ITicketService ticketService,
-        ISeatService seatService
-    )
+        ITicketRepository ticketRepository,
+        ISeatService seatService)
     {
         _refundRepository = refundRepository;
-        _cancellationService =
-           cancellationService;
-        _ticketService =
-            ticketService;
-        _seatService =
-            seatService;
+        _ticketRepository = ticketRepository;
+        _seatService = seatService;
     }
     // =========================================================
     // HISTORY
@@ -164,90 +158,29 @@ public class RefundService : IRefundService
         return MapToResponse(created);
     }
 
-    // =========================================================
-    // CREATE REFUND FROM CALCULATION
-    // =========================================================
-
-    public async Task<RefundResponse>
-        CreateFromCalculationAsync(
-            int ticketId)
-    {
-        // 1. Check duplicate
-        var existing =
-            await _refundRepository.GetByTicketIdAsync(
-                ticketId);
-
-        if (existing != null)
-        {
-            throw new InvalidOperationException(
-                $"Refund already exists for Ticket {ticketId}.");
-        }
-
-        // 2. Calculate cancellation
-        var calculation =
-            await _cancellationService
-                .CalculateCancellationAsync(
-                    ticketId);
-
-        if (calculation == null)
-        {
-            throw new InvalidOperationException(
-                "Unable to calculate cancellation.");
-        }
-
-        // 3. Check cancellation allowed
-        if (!calculation.CanCancel)
-        {
-            throw new InvalidOperationException(
-                calculation.RejectReason
-                ?? "Cancellation is not allowed.");
-        }
-
-        // 4. Create refund PENDING
-        var refund = new Refund
-        {
-            TicketId =
-                ticketId,
-
-            CancellationRuleId =
-                calculation.CancellationRuleId,
-
-            AmountPaid =
-                calculation.Fare,
-
-            CancellationFee =
-                calculation.CancellationFee,
-
-            RefundAmount =
-                calculation.RefundAmount,
-
-            RefundStatus =
-                "PENDING",
-
-            RefundDate =
-                DateTime.UtcNow
-        };
-
-        var created =
-            await _refundRepository.CreateAsync(refund);
-
-        return MapToResponse(created);
-    }
-
 
     // =========================================================
     // PROCESS REFUND
     // =========================================================
 
-    public async Task<RefundResponse?>
-       ProcessAsync(int refundId)
+    public async Task<RefundResponse> ProcessAsync(int refundId)
     {
+        if (refundId <= 0)
+        {
+            throw new ArgumentException(
+                "Refund ID must be greater than 0.",
+                nameof(refundId));
+        }
+
         var refund =
             await _refundRepository.GetByIdAsync(
                 refundId);
 
         if (refund == null)
-            return null;
+        {
+            throw new KeyNotFoundException(
+                $"Refund with ID {refundId} was not found.");
+        }
 
         if (refund.RefundStatus != "PENDING")
         {
@@ -274,14 +207,16 @@ public class RefundService : IRefundService
 
             if (!paymentSuccess)
             {
-                await MarkAsFailedAsync(
-                    refundId);
+                await MarkAsFailedAsync(refundId);
 
-                return await GetByIdAsync(
-                    refundId);
+                throw new InvalidOperationException(
+                    $"Refund {refundId} payment failed.");
             }
 
+            // -------------------------------------------------
             // Payment succeeded
+            // -------------------------------------------------
+
             refund.RefundStatus =
                 "PROCESSED";
 
@@ -291,39 +226,40 @@ public class RefundService : IRefundService
             await _refundRepository.UpdateAsync(
                 refund);
 
+            // -------------------------------------------------
             // Ticket → CANCELLED
-            await _ticketService.CancelAsync(
-                refund.TicketId,
-                "Customer requested cancellation.");
+            // -------------------------------------------------
 
+            await _ticketRepository.CancelAsync(
+                refund.TicketId,
+                "Customer requested cancellation.",
+                refund.RefundDate);
+
+            // -------------------------------------------------
             // Release Seat
+            // -------------------------------------------------
+
             var ticket =
-                await _ticketService.GetByIdAsync(
+                await _ticketRepository.GetByIdAsync(
                     refund.TicketId);
 
             if (ticket?.SeatId != null)
             {
                 await _seatService.ReleaseAsync(
-                    ticket.SeatId.Value);
+                    ticket.SeatId.Value,
+                    refund.TicketId);
             }
 
             return MapToResponse(refund);
         }
         catch
         {
-            await _refundRepository
-                .UpdateStatusAsync(
-                    refundId,
-                    RefundStatus.Failed);
+            await _refundRepository.UpdateStatusAsync(
+                refundId,
+                RefundStatus.Failed);
 
             throw;
         }
-
-        var updated =
-            await _refundRepository
-                .GetByIdAsync(refundId);
-
-        return MapToResponse(updated!);
     }
 
     // =========================================================
@@ -421,5 +357,39 @@ public class RefundService : IRefundService
             RefundDate =
                 r.RefundDate
         };
+    }
+
+public async Task<bool> UpdateAsync(
+    int id,
+    RefundUpdateRequest dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (id <= 0)
+        {
+            throw new ArgumentException(
+                "Refund ID must be greater than 0.",
+                nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.RefundStatus))
+        {
+            throw new ArgumentException(
+                "Refund status is required.",
+                nameof(dto.RefundStatus));
+        }
+
+        var refund = await _refundRepository
+            .GetByIdAsync(id);
+
+        if (refund == null)
+        {
+            return false;
+        }
+
+        return await _refundRepository
+            .UpdateStatusAsync(
+                id,
+                dto.RefundStatus.Trim());
     }
 }

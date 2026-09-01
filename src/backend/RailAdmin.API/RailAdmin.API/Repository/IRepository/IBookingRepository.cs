@@ -19,4 +19,8 @@ public interface IBookingRepository
         string status);
 
     Task<bool> CancelAsync(string pnr);
+
+    Task UpdateTotalAmountAsync(string pnr, decimal total);
+    Task<bool> DeleteAsync(string pnr);
+    Task<bool> UpdateAsync(Booking bookingUpdate);
 }

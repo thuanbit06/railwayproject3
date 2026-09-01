@@ -12,18 +12,21 @@ public class CancellationService : ICancellationService
     private readonly ITicketService _ticketService;
     private readonly ITripService _tripService;
     private readonly ITicketRepository _ticketRepository;
+    private readonly IRefundRepository _refundRepository;
 
     public CancellationService(
         ICancellationRuleRepository ruleRepository,
         ITicketService ticketService,
         ITripService tripService,
-        ITicketRepository ticketRepository
+        ITicketRepository ticketRepository,
+        IRefundRepository refundRepository
         )
     {
         _ruleRepository = ruleRepository;
         _ticketService = ticketService;
         _tripService = tripService;
         _ticketRepository = ticketRepository;
+        _refundRepository = refundRepository;
     }
 
     // =========================================================
@@ -494,6 +497,90 @@ public class CancellationService : ICancellationService
 
             MinFee =
                 r.MinFee
+        };
+    }
+
+    // =========================================================
+    // CREATE REFUND FROM CALCULATION
+    // =========================================================
+
+    public async Task<RefundResponse> CreateFromCalculationAsync(
+        int ticketId)
+    {
+        // 1. Check duplicate
+        var existing =
+            await _refundRepository.GetByTicketIdAsync(
+                ticketId);
+
+        if (existing != null)
+        {
+            throw new InvalidOperationException(
+                $"Refund already exists for Ticket {ticketId}.");
+        }
+
+        // 2. Calculate cancellation
+        var calculation =
+            await CalculateCancellationAsync(
+                ticketId);
+
+        if (calculation == null)
+        {
+            throw new InvalidOperationException(
+                "Unable to calculate cancellation.");
+        }
+
+        // 3. Check cancellation allowed
+        if (!calculation.CanCancel)
+        {
+            throw new InvalidOperationException(
+                calculation.RejectReason
+                ?? "Cancellation is not allowed.");
+        }
+
+        // 4. Create refund PENDING
+        var refund = new Refund
+        {
+            TicketId =
+                ticketId,
+
+            CancellationRuleId =
+                calculation.CancellationRuleId,
+
+            AmountPaid =
+                calculation.Fare,
+
+            CancellationFee =
+                calculation.CancellationFee,
+
+            RefundAmount =
+                calculation.RefundAmount,
+
+            RefundStatus =
+                "PENDING",
+
+            RefundDate =
+                DateTime.UtcNow
+        };
+
+        var created =
+            await _refundRepository.CreateAsync(
+                refund);
+
+        return new RefundResponse
+        {
+            Id = created.Id,
+            TicketId = created.TicketId,
+            CancellationRuleId =
+                created.CancellationRuleId,
+            AmountPaid = created.AmountPaid,
+            CancellationFee =
+                created.CancellationFee,
+            RefundAmount =
+                created.RefundAmount,
+            RefundStatus =
+                created.RefundStatus,
+            RefundDate =
+                created.RefundDate
         };
     }
 }

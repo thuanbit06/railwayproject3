@@ -3,6 +3,7 @@ using global::RailAdmin.API.DTOs.Request.CancellationRule;
 using global::RailAdmin.API.Services.IService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RailAdmin.API.Services;
 
 
 [ApiController]
@@ -11,11 +12,15 @@ using Microsoft.AspNetCore.Mvc;
 public class CancellationsController : ControllerBase
 {
     private readonly ICancellationService _service;
+    private readonly IRefundService _refundService;
 
     public CancellationsController(
-        ICancellationService service)
+        ICancellationService service,
+        IRefundService refundService
+        )
     {
         _service = service;
+        _refundService = refundService;
     }
 
     // =========================================================
@@ -75,5 +80,45 @@ public class CancellationsController : ControllerBase
         var result = await _service.CalculateCancellationAsync(dto.TicketId);
 
         return Ok(result);
+    }
+
+
+    // =========================================================
+    // CREATE FROM CALCULATION
+    // =========================================================
+
+    [HttpPost("ticket/{ticketId:int}/refund")]
+    public async Task<IActionResult> CreateRefund(int ticketId)
+    {
+        if (ticketId <= 0)
+        {
+            return BadRequest(new
+            {
+                message = "Ticket ID must be greater than 0."
+            });
+        }
+
+        try
+        {
+            var refund =
+                await _service
+                    .CreateFromCalculationAsync(ticketId);
+
+            return Ok(refund);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }

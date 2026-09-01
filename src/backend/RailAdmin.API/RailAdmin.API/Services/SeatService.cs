@@ -9,6 +9,10 @@ namespace RailAdmin.API.Services;
 public class SeatService : ISeatService
 {
     private readonly ISeatRepository _repo;
+    public SeatService(ISeatRepository repo)
+    {
+        _repo = repo;
+    }
 
     public async Task<IEnumerable<SeatResponse>> GetAllAsync()
     {
@@ -35,17 +39,12 @@ public class SeatService : ISeatService
     public async Task<SeatResponse> CreateAsync(SeatCreateRequest dto) 
     {
         if (dto.CoachId <= 0) throw new ArgumentException("Invalid coach ID."); 
-        if (string.IsNullOrWhiteSpace(dto.SeatNo)) throw new ArgumentException("Seat number is required."); 
-        var seat = new Seat 
-        { 
-            CoachId = dto.CoachId, 
-            SeatNo = dto.SeatNo.Trim() 
+        if (string.IsNullOrWhiteSpace(dto.SeatNo)) throw new ArgumentException("Seat number is required.");
         // -----------------------------------------------------
         // Check Coach
         // -----------------------------------------------------
 
-        var coachExists =
-            await _repo.CoachExistsAsync(dto.CoachId);
+        var coachExists = await _repo.CoachExistsAsync(dto.CoachId);
 
         if (!coachExists)
         {
@@ -85,25 +84,16 @@ public class SeatService : ISeatService
         };
         var created = await _repo.CreateAsync(seat); 
         return MapToResponse(created); 
-
-        var created =
-            await _repo.CreateAsync(seat);
-
-        return MapToResponse(created);
     }
 
-    public async Task<bool> UpdateAsync(int id, SeatUpdateRequest dto)
-    {
-        if (id <= 0) return false; 
-        if (string.IsNullOrWhiteSpace(dto.SeatNo)) return false;
     // =========================================================
     // UPDATE
     // =========================================================
-
-    public async Task<bool> UpdateAsync(
-        int id,
-        SeatUpdateRequest dto)
+    public async Task<bool> UpdateAsync( int id, SeatUpdateRequest dto)
     {
+        if (id <= 0) return false;
+        if (string.IsNullOrWhiteSpace(dto.SeatNo)) return false;
+
         var existing =
             await _repo.GetByIdAsync(id);
 

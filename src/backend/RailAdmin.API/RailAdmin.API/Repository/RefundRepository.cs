@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RailAdmin.API.Data;
+using RailAdmin.API.DTOs.Request.Refund;
 using RailAdmin.API.Models;
 using RailAdmin.API.Repository.IRepository;
 using System.Net.Sockets;
@@ -62,9 +63,6 @@ public class RefundRepository : IRefundRepository
         return refund;
     }
 
-    public async Task<bool> UpdateStatusAsync(
-        int id,
-        string status)
     // =========================================================
     // UPDATE
     // =========================================================
@@ -73,26 +71,15 @@ public class RefundRepository : IRefundRepository
     {
         var existing =
             await _db.Refunds
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == refund.Id);
 
         if (existing == null)
         {
             return false;
         }
-
-        existing.RefundStatus = status;
 
         ArgumentNullException.ThrowIfNull(refund);
 
-        var existing =
-            await _db.Refunds
-                .FirstOrDefaultAsync(
-                    r => r.Id == refund.Id);
-
-        if (existing == null)
-        {
-            return false;
-        }
 
         existing.CancellationRuleId =
             refund.CancellationRuleId;
@@ -139,16 +126,34 @@ public class RefundRepository : IRefundRepository
         return true;
     }
 
-    public async Task<bool> UpdateAsync(Refund refund)
+    public async Task<bool> UpdateStatusAsync(int id, string status)
     {
-        //var existing = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticket.Id);
-        //if (existing == null) return false;
-        //existing.SeatId = ticket.SeatId;
-        //existing.Status = ticket.Status;
-        //existing.CancelReason = ticket.CancelReason;
-        //if (ticket.Status == "Cancelled" && existing.CancelledAt == null)
-        //    existing.CancelledAt = DateTime.UtcNow;
-        //await _db.SaveChangesAsync();
+        if (id <= 0)
+        {
+            throw new ArgumentException(
+                "Refund ID must be greater than 0.",
+                nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            throw new ArgumentException(
+                "Refund status is required.",
+                nameof(status));
+        }
+
+        var refund = await _db.Refunds
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (refund == null)
+        {
+            return false;
+        }
+
+        refund.RefundStatus = status.Trim();
+
+        await _db.SaveChangesAsync();
+
         return true;
     }
 }

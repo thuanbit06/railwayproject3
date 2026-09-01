@@ -110,6 +110,20 @@ public class BookingsController : ControllerBase
                 message = ex.Message
             });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     // =========================================================
@@ -127,6 +141,11 @@ public class BookingsController : ControllerBase
             {
                 message = "PNR is required."
             });
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
         }
 
         try
@@ -196,38 +215,42 @@ public class BookingsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var exists =
-            await _service.GetByPNRAsync(
-                pnr.Trim());
-
-        if (exists == null)
+        try
         {
-            return NotFound(new
+            var updated =
+                await _service.UpdateAsync(
+                    pnr.Trim(),
+                    dto);
+
+            if (!updated)
             {
-                message =
-                    $"Booking with PNR '{pnr}' was not found."
-            });
+                return NotFound(new
+                {
+                    message =
+                        $"Booking with PNR '{pnr}' was not found."
+                });
+            }
+
+            var booking =
+                await _service.GetByPNRAsync(
+                    pnr.Trim());
+
+            return Ok(booking);
         }
-
-        var updated =
-            await _service.UpdateAsync(
-                pnr.Trim(),
-                dto);
-
-        if (!updated)
+        catch (ArgumentException ex)
         {
             return BadRequest(new
             {
-                message =
-                    "Unable to update booking."
+                message = ex.Message
             });
         }
-
-        return Ok(new
+        catch (InvalidOperationException ex)
         {
-            message =
-                "Booking updated successfully."
-        });
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     // =========================================================
@@ -235,6 +258,7 @@ public class BookingsController : ControllerBase
     // =========================================================
 
     [HttpDelete("{pnr}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(
         string pnr)
     {
@@ -246,23 +270,40 @@ public class BookingsController : ControllerBase
             });
         }
 
-        var deleted =
-            await _service.DeleteAsync(
-                pnr.Trim());
-
-        if (!deleted)
+        try
         {
-            return NotFound(new
+            var deleted =
+                await _service.DeleteAsync(
+                    pnr.Trim());
+
+            if (!deleted)
+            {
+                return NotFound(new
+                {
+                    message =
+                        $"Booking with PNR '{pnr}' was not found."
+                });
+            }
+
+            return Ok(new
             {
                 message =
-                    $"Booking with PNR '{pnr}' was not found."
+                    "Booking deleted successfully."
             });
         }
-
-        return Ok(new
+        catch (ArgumentException ex)
         {
-            message =
-                "Booking deleted successfully."
-        });
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }
