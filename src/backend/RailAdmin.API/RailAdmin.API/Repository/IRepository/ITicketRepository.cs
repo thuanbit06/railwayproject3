@@ -9,7 +9,12 @@ public interface ITicketRepository
 
     Task<IEnumerable<Ticket>> GetByPNRAsync(string pnr);
 
+    Task<IEnumerable<Ticket>> GetByUserIdAsync(int userId);
+
     Task<Ticket?> GetByIdAsync(int id);
+
+    Task<Ticket?> GetByIdWithBookingAndTripAsync(int id);
+
     Task<Trip?> GetTripByPNRAsync(string pnr);
 
     Task<Ticket> CreateAsync(Ticket ticket);
@@ -22,25 +27,21 @@ public interface ITicketRepository
 
     Task<bool> SeatExistsAsync(int seatId);
 
-    Task<bool> SeatIsAlreadyBookedAsync(
-        int seatId,
-        string pnr);
+    Task<bool> SeatIsAlreadyBookedAsync(int seatId, string pnr);
 
-    Task<bool> SeatBelongsToTripAsync(
-        int seatId,
-        string pnr);
+    Task<bool> SeatBelongsToTripAsync(int seatId, string pnr);
 
-    Task<int> CountByPNRAsync(string pnr);
+    Task<int> CountByPNRAsync( string pnr);
 
-    Task<int> CountActiveTicketsByPNRAsync(string pnr);
+    Task<int> CountActiveTicketsByPNRAsync( string pnr);
 
-    Task<decimal> GetTotalFareByPNRAsync(string pnr);
+    Task<decimal> GetTotalFareByPNRAsync( string pnr);
 
-    Task<decimal> GetActiveTotalFareByPNRAsync(string pnr);
-    Task<bool> CancelAllByPNRAsync(
-    string pnr,
-    string reason);
-    Task<bool> CancelAsync(int ticketId,string? cancelReason,DateTime cancelledAt);
+    Task<decimal> GetActiveTotalFareByPNRAsync( string pnr);
+
+    Task<bool> CancelAllByPNRAsync(string pnr, string reason);
+
+    Task<bool> CancelAsync(int ticketId, string? cancelReason, DateTime cancelledAt);
+
     Task<bool> ReleaseSeatAsync(int seatId);
-    Task<Ticket?> GetByIdWithBookingAndTripAsync(int id);
 }

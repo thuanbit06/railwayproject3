@@ -8,6 +8,8 @@ using RailAdmin.API.Services;
 using RailAdmin.API.Services.IService;
 using System.Text;
 using RailAdmin.API.Repository;
+using RailAdmin.API.Services.IRepository;
+using RailAdmin.API.Services.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -146,6 +148,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Services
 builder.Services.AddScoped<IStationService, StationService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ITrainService, TrainService>();
 builder.Services.AddScoped<ITrainCoachService, TrainCoachService>();
 builder.Services.AddScoped<ISeatService, SeatService>();
@@ -159,6 +162,7 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IWaitListService, WaitListService>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICancellationService, CancellationService>();
 builder.Services.AddScoped<IRefundService, RefundService>();

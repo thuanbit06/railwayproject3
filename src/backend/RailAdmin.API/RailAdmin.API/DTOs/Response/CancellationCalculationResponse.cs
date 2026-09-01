@@ -10,7 +10,7 @@ public class CancellationCalculationResponse
 
     public DateTime DepartureTime { get; set; }
 
-    public DateTime CancellationTime { get; set; }
+    public DateTime CancellationTime { get; set; } = DateTime.UtcNow;
 
     public decimal HoursBeforeDeparture { get; set; }
 
@@ -29,7 +29,10 @@ public class CancellationCalculationResponse
     public decimal CancellationFee { get; set; }
 
     public decimal RefundAmount { get; set; }
-    public decimal AmountPaid { get; internal set; }
-    public bool CancellationAllowed { get; internal set; }
-    public string Message { get; internal set; }
+
+    public decimal AmountPaid { get; set; }
+
+    public bool CancellationAllowed { get; set; }
+
+    public string Message { get; set; } = string.Empty;
 }

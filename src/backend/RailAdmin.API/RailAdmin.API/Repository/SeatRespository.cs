@@ -8,6 +8,10 @@ namespace RailAdmin.API.Repository;
 public class SeatRepository : ISeatRepository
 {
     private readonly AppDbContext _db;
+    public SeatRepository(AppDbContext db)
+    {
+        _db = db;
+    }
 
     public async Task<IEnumerable<Seat>> GetAllAsync()
         => await _db.Seats
@@ -24,14 +28,10 @@ public class SeatRepository : ISeatRepository
         .Where(s => s.CoachId == coachId)
         .ToListAsync();
 
-    public async Task<Seat?> GetByIdAsync(int id)
-        => await _db.Seats
+    public async Task<Seat?> GetByIdAsync(int id) {     
+        return await _db.Seats
         .AsNoTracking()
         .FirstOrDefaultAsync(s => s.Id == id);
-    {
-        return await _db.Seats
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == id);
     }
 
     // =========================================================
