@@ -40,6 +40,8 @@ import StationManagement from "./pages/admin/StationManagement";
 import ReservationsManagement from "./pages/admin/ReservationsManagement";
 import TicketsManagement from "./pages/admin/TicketsManagement";
 import Help from "./pages/admin/Help";
+import Seats from "./pages/admin/Seats";
+import CoachManagement from "./pages/admin/CoachManagement";
 
 function App() {
   return (
@@ -94,6 +96,16 @@ function App() {
                   <Route path="tickets" element={<TicketsManagement />} />
 
                   <Route path="analytics" element={<Analytics />} />
+                  <Route path="seat" element={<Seats />} />
+                  <Route
+                    path="/admin/trains/:trainId/coaches"
+                    element={<CoachManagement />}
+                  />
+
+                  <Route
+                    path="/admin/coaches/:coachId/seats"
+                    element={<Seats />}
+                  />
 
                   <Route path="settings" element={<Settings />} />
 

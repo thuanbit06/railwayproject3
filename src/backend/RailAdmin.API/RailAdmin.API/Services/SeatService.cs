@@ -8,22 +8,21 @@ namespace RailAdmin.API.Services;
 
 public class SeatService : ISeatService
 {
-    private readonly ISeatRepository _repo;
-    public SeatService(ISeatRepository repo)
+    private readonly ISeatRepository _seatRepository;
+
+    public SeatService(ISeatRepository seatRepository)
     {
-        _repo = repo;
+        _seatRepository = seatRepository;
     }
+
+    // =========================================================
+    // GET ALL
+    // =========================================================
 
     public async Task<IEnumerable<SeatResponse>> GetAllAsync()
     {
-        var list = await _repo.GetAllAsync();
-        return list.Select(MapToResponse);
-    }
-
-    public async Task<IEnumerable<SeatResponse>> GetByCoachIdAsync(int coachId)
-    {
-        var list = await _repo.GetByCoachIdAsync(coachId);
-        return list.Select(MapToResponse);
+        var seats = await _seatRepository.GetAllAsync();
+        return seats.Select(MapToResponse);
     }
 
     // =========================================================
@@ -32,149 +31,167 @@ public class SeatService : ISeatService
 
     public async Task<SeatResponse?> GetByIdAsync(int id)
     {
-        var item = await _repo.GetByIdAsync(id);
-        return item == null ? null : MapToResponse(item);
+        if (id <= 0)
+        {
+            throw new ArgumentException(
+                "Seat ID must be greater than 0.",
+                nameof(id));
+        }
+
+        var seat = await _seatRepository.GetByIdAsync(id);
+
+        if (seat == null)
+            return null;
+
+        return MapToResponse(seat);
     }
 
-    public async Task<SeatResponse> CreateAsync(SeatCreateRequest dto) 
+    // =========================================================
+    // GET BY COACH
+    // =========================================================
+
+    public async Task<IEnumerable<SeatResponse>> GetByCoachIdAsync(int coachId)
     {
-        if (dto.CoachId <= 0) throw new ArgumentException("Invalid coach ID."); 
-        if (string.IsNullOrWhiteSpace(dto.SeatNo)) throw new ArgumentException("Seat number is required.");
-        // -----------------------------------------------------
-        // Check Coach
-        // -----------------------------------------------------
+        if (coachId <= 0)
+            return Enumerable.Empty<SeatResponse>();
 
-        var coachExists = await _repo.CoachExistsAsync(dto.CoachId);
+        var seats = await _seatRepository.GetByCoachIdAsync(coachId);
+        return seats.Select(MapToResponse);
+    }
 
-        if (!coachExists)
+    // =========================================================
+    // CREATE
+    // =========================================================
+
+    public async Task<SeatResponse> CreateAsync(SeatCreateRequest dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (dto.CoachId <= 0)
         {
-            throw new KeyNotFoundException(
-                $"Coach with ID {dto.CoachId} not found.");
+            throw new ArgumentException(
+                "CoachId must be greater than 0.",
+                nameof(dto.CoachId));
         }
 
-        // -----------------------------------------------------
-        // Normalize SeatNo
-        // -----------------------------------------------------
-
-        var seatNo = dto.SeatNo.Trim().ToUpper();
-
-        // -----------------------------------------------------
-        // Check duplicate
-        // -----------------------------------------------------
-
-        var exists =
-            await _repo.SeatNoExistsAsync(
-                dto.CoachId,
-                seatNo);
-
-        if (exists)
+        if (string.IsNullOrWhiteSpace(dto.SeatNo))
         {
-            throw new InvalidOperationException(
-                $"Seat number '{seatNo}' already exists in this coach.");
+            throw new ArgumentException(
+                "SeatNo is required.",
+                nameof(dto.SeatNo));
         }
-
-        // -----------------------------------------------------
-        // Create
-        // -----------------------------------------------------
 
         var seat = new Seat
         {
             CoachId = dto.CoachId,
-            SeatNo = seatNo
+            SeatNo = dto.SeatNo.Trim(),
+            BerthType = string.IsNullOrWhiteSpace(dto.BerthType)
+                ? null
+                : dto.BerthType.Trim()
         };
-        var created = await _repo.CreateAsync(seat); 
-        return MapToResponse(created); 
+
+        var created = await _seatRepository.AddAsync(seat);
+
+        // Load lại để lấy navigation Coach
+        var fullSeat = await _seatRepository.GetByIdAsync(created.Id);
+
+        return MapToResponse(fullSeat ?? created);
     }
 
     // =========================================================
     // UPDATE
     // =========================================================
-    public async Task<bool> UpdateAsync( int id, SeatUpdateRequest dto)
-    {
-        if (id <= 0) return false;
-        if (string.IsNullOrWhiteSpace(dto.SeatNo)) return false;
 
-        var existing =
-            await _repo.GetByIdAsync(id);
+    public async Task<bool> UpdateAsync(int id, SeatUpdateRequest dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (id <= 0)
+        {
+            throw new ArgumentException(
+                "Seat ID must be greater than 0.",
+                nameof(id));
+        }
+
+        if (dto.CoachId <= 0)
+        {
+            throw new ArgumentException(
+                "CoachId must be greater than 0.",
+                nameof(dto.CoachId));
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.SeatNo))
+        {
+            throw new ArgumentException(
+                "SeatNo is required.",
+                nameof(dto.SeatNo));
+        }
+
+        var existing = await _seatRepository.GetByIdAsync(id);
 
         if (existing == null)
             return false;
 
-        var seatNo =
-            dto.SeatNo.Trim().ToUpper();
+        existing.CoachId = dto.CoachId;
+        existing.SeatNo = dto.SeatNo.Trim();
+        existing.BerthType = string.IsNullOrWhiteSpace(dto.BerthType)
+            ? null
+            : dto.BerthType.Trim();
 
-        // -----------------------------------------------------
-        // Check duplicate
-        // -----------------------------------------------------
+        return await _seatRepository.UpdateAsync(existing);
+    }
 
-        var exists =
-            await _repo.SeatNoExistsAsync(
-                existing.CoachId,
-                seatNo,
-                id);
+    // =========================================================
+    // DELETE
+    // =========================================================
 
-        if (exists)
+    public async Task<bool> DeleteAsync(int id)
+    {
+        if (id <= 0)
         {
-            throw new InvalidOperationException(
-                $"Seat number '{seatNo}' already exists in this coach.");
+            throw new ArgumentException(
+                "Seat ID must be greater than 0.",
+                nameof(id));
         }
 
-        // -----------------------------------------------------
-        // Update
-        // -----------------------------------------------------
+        return await _seatRepository.DeleteAsync(id);
+    }
 
-        var seat = new Seat
+    // =========================================================
+    // CHECK METHODS (dùng cho TicketService)
+    // =========================================================
+
+    public async Task<bool> SeatExistsAsync(int seatId)
+    {
+        return await _seatRepository.SeatExistsAsync(seatId);
+    }
+
+    public async Task<bool> SeatBelongsToTripAsync(int seatId, string pnr)
+    {
+        return await _seatRepository.SeatBelongsToTripAsync(seatId, pnr);
+    }
+
+    public async Task<bool> SeatIsAlreadyBookedAsync(int seatId, string pnr)
+    {
+        return await _seatRepository.SeatIsAlreadyBookedAsync(seatId, pnr);
+    }
+
+    // =========================================================
+    // MAP
+    // =========================================================
+
+    private static SeatResponse MapToResponse(Seat seat)
+    {
+        return new SeatResponse
         {
-            Id = id,
-            CoachId = existing.CoachId,
-            SeatNo = seatNo
+            Id = seat.Id,
+            CoachId = seat.CoachId,
+            SeatNo = seat.SeatNo,
+            BerthType = seat.BerthType,
+
+            CoachNo = seat.Coach?.CoachNo ?? "N/A",
+            ClassType = seat.Coach?.ClassType ?? "N/A",
+            TrainId = seat.Coach?.TrainId
         };
-        return await _repo.UpdateAsync(seat);
-    }
-
-    public async Task<bool> DeleteAsync(int id) {
-        if (id <= 0) return false; 
-        return await _repo.DeleteAsync(id); 
-    }
-
-    private static SeatResponse MapToResponse(Seat s) => new()
-    {
-        Id = s.Id,
-        CoachId = s.CoachId,
-        SeatNo = s.SeatNo
-    };
-
-
-    //chỉ xác nhận seat có thể được release, còn việc chuyển: Ticket Confirmed -> Cancelled phải do TicketService thực hiện.
-    public async Task<bool> ReleaseAsync(int seatId, int ticketId)
-    {
-        if (seatId <= 0 || ticketId <= 0) return false; 
-        var seat = await _repo.GetByIdAsync(seatId); 
-        if (seat == null) return false; 
-        var owned = await _repo.IsOwnedByTicketAsync(seatId, ticketId); 
-        if (!owned) return false; // Seat itself does not need to be updated. // 
-        // TicketService will change: // 
-        // Confirmed -> Cancelled // 
-        // Therefore this seat becomes available 
-        // automatically.
-        return true;
-    }
-
-    public async Task<bool> IsAvailableAsync(int seatId)
-    {
-        if (seatId <= 0) return false; 
-        var seat = await _repo.GetByIdAsync(seatId); 
-        if (seat == null) return false; 
-        return await _repo.IsAvailableAsync(seatId); 
-    }
-
-    public async Task<bool> ReleaseAsync(int seatId)
-    {
-        var seat = await _repo.GetByIdAsync(seatId);
-
-        if (seat == null)
-            return false;
-
-        return await _repo.ReleaseAsync(seatId);
     }
 }

@@ -235,21 +235,6 @@ public class RefundService : IRefundService
                 "Customer requested cancellation.",
                 refund.RefundDate);
 
-            // -------------------------------------------------
-            // Release Seat
-            // -------------------------------------------------
-
-            var ticket =
-                await _ticketRepository.GetByIdAsync(
-                    refund.TicketId);
-
-            if (ticket?.SeatId != null)
-            {
-                await _seatService.ReleaseAsync(
-                    ticket.SeatId.Value,
-                    refund.TicketId);
-            }
-
             return MapToResponse(refund);
         }
         catch

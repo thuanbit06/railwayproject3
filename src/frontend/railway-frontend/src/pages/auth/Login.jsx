@@ -314,15 +314,6 @@ const Login = () => {
 
         {step === "verify" && (
           <>
-            <button
-              type="button"
-              onClick={backToLogin}
-              disabled={otpLoading}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#1677FF] mb-4">
-              <ArrowLeft size={16} />
-              Back
-            </button>
-
             <div className="text-center mb-6">
               <ShieldCheck size={48} className="mx-auto text-[#1677FF] mb-2" />
 
@@ -384,6 +375,14 @@ const Login = () => {
             <p className="text-center text-xs text-gray-400 mt-6">
               OTP có hiệu lực trong 5 phút.
             </p>
+            <button
+              type="button"
+              onClick={backToLogin}
+              disabled={otpLoading}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#1677FF] mb-4">
+              <ArrowLeft size={16} />
+              Back
+            </button>
           </>
         )}
       </div>
