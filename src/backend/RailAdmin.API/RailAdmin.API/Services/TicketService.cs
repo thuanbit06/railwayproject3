@@ -11,18 +11,20 @@ public class TicketService : ITicketService
 {
     private readonly ITicketRepository _ticketRepository;
     private readonly IBookingRepository _bookingRepository;
+    private readonly ISeatService _seatService;
     private readonly IRefundService _refundService;
     private readonly ICancellationRuleService _cancellationRuleService;
 
     public TicketService(
         ITicketRepository ticketRepository,
         IBookingRepository bookingRepository,
+        ISeatService seatService,
         IRefundService refundService,
-        ICancellationRuleService cancellationRuleService
-    )
+        ICancellationRuleService cancellationRuleService)
     {
         _ticketRepository = ticketRepository;
         _bookingRepository = bookingRepository;
+        _seatService = seatService;
         _refundService = refundService;
         _cancellationRuleService = cancellationRuleService;
     }
@@ -34,7 +36,6 @@ public class TicketService : ITicketService
     public async Task<IEnumerable<TicketResponse>> GetAllAsync()
     {
         var tickets = await _ticketRepository.GetAllAsync();
-
         return tickets.Select(MapToResponse);
     }
 
@@ -42,21 +43,16 @@ public class TicketService : ITicketService
     // GET TICKETS BY PNR
     // =========================================================
 
-    public async Task<IEnumerable<TicketResponse>> GetByPNRAsync(
-        string pnr)
+    public async Task<IEnumerable<TicketResponse>> GetByPNRAsync(string pnr)
     {
         if (string.IsNullOrWhiteSpace(pnr))
         {
-            throw new ArgumentException(
-                "PNR is required.",
-                nameof(pnr));
+            throw new ArgumentException("PNR is required.", nameof(pnr));
         }
 
         pnr = pnr.Trim();
 
-        var tickets =
-            await _ticketRepository.GetByPNRAsync(pnr);
-
+        var tickets = await _ticketRepository.GetByPNRAsync(pnr);
         return tickets.Select(MapToResponse);
     }
 
@@ -73,8 +69,7 @@ public class TicketService : ITicketService
                 nameof(id));
         }
 
-        var ticket =
-            await _ticketRepository.GetByIdAsync(id);
+        var ticket = await _ticketRepository.GetByIdAsync(id);
 
         if (ticket == null)
             return null;
@@ -86,16 +81,12 @@ public class TicketService : ITicketService
     // GET MY TICKETS
     // =========================================================
 
-    public async Task<IEnumerable<TicketResponse>> GetByUserIdAsync(
-        int userId)
+    public async Task<IEnumerable<TicketResponse>> GetByUserIdAsync(int userId)
     {
         if (userId <= 0)
             return Enumerable.Empty<TicketResponse>();
 
-        var tickets =
-            await _ticketRepository
-                .GetByUserIdAsync(userId);
-
+        var tickets = await _ticketRepository.GetByUserIdAsync(userId);
         return tickets.Select(MapToResponse);
     }
 
@@ -105,16 +96,13 @@ public class TicketService : ITicketService
     // Dùng trong quá trình booking.
     // MyTickets không cần gọi trực tiếp endpoint này.
 
-    public async Task<TicketResponse> CreateAsync(
-        TicketCreateRequest dto)
+    public async Task<TicketResponse> CreateAsync(TicketCreateRequest dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
 
         if (string.IsNullOrWhiteSpace(dto.PNR))
         {
-            throw new ArgumentException(
-                "PNR is required.",
-                nameof(dto.PNR));
+            throw new ArgumentException("PNR is required.", nameof(dto.PNR));
         }
 
         var pnr = dto.PNR.Trim();
@@ -123,8 +111,7 @@ public class TicketService : ITicketService
         // BOOKING
         // -----------------------------------------------------
 
-        var booking =
-            await _bookingRepository.GetByPNRAsync(pnr);
+        var booking = await _bookingRepository.GetByPNRAsync(pnr);
 
         if (booking == null)
         {
@@ -181,9 +168,7 @@ public class TicketService : ITicketService
         // PASSENGER LIMIT
         // -----------------------------------------------------
 
-        var currentTickets =
-            await _ticketRepository
-                .CountByPNRAsync(pnr);
+        var currentTickets = await _ticketRepository.CountByPNRAsync(pnr);
 
         if (currentTickets >= booking.TotalPassengers)
         {
@@ -199,35 +184,19 @@ public class TicketService : ITicketService
         {
             var seatId = dto.SeatId.Value;
 
-            var seatExists =
-                await _ticketRepository
-                    .SeatExistsAsync(seatId);
-
-            if (!seatExists)
+            if (!await _seatService.SeatExistsAsync(seatId))
             {
                 throw new KeyNotFoundException(
                     $"Seat with ID {seatId} was not found.");
             }
 
-            var seatBelongsToTrip =
-                await _ticketRepository
-                    .SeatBelongsToTripAsync(
-                        seatId,
-                        pnr);
-
-            if (!seatBelongsToTrip)
+            if (!await _seatService.SeatBelongsToTripAsync(seatId, pnr))
             {
                 throw new InvalidOperationException(
                     $"Seat {seatId} does not belong to the booking trip.");
             }
 
-            var alreadyBooked =
-                await _ticketRepository
-                    .SeatIsAlreadyBookedAsync(
-                        seatId,
-                        pnr);
-
-            if (alreadyBooked)
+            if (await _seatService.SeatIsAlreadyBookedAsync(seatId, pnr))
             {
                 throw new InvalidOperationException(
                     $"Seat {seatId} is already booked.");
@@ -246,9 +215,7 @@ public class TicketService : ITicketService
             Age = dto.Age,
             Gender = dto.Gender.Trim(),
             Fare = dto.Fare,
-            Status = dto.SeatId.HasValue
-                ? "Confirmed"
-                : "Waiting",
+            Status = dto.SeatId.HasValue ? "Confirmed" : "Waiting",
             CancelReason = null,
             CancelledAt = null
         };
@@ -259,31 +226,19 @@ public class TicketService : ITicketService
         // UPDATE BOOKING TOTAL
         // -----------------------------------------------------
 
-        var total =
-            await _ticketRepository
-                .GetTotalFareByPNRAsync(pnr);
+        var total = await _ticketRepository.GetTotalFareByPNRAsync(pnr);
+        await _bookingRepository.UpdateTotalAmountAsync(pnr, total);
 
-        await _bookingRepository
-            .UpdateTotalAmountAsync(
-                pnr,
-                total);
+        var createdTicket = await _ticketRepository.GetByIdAsync(ticket.Id);
 
-        // Load lại ticket đầy đủ navigation
-        var createdTicket =
-            await _ticketRepository
-                .GetByIdAsync(ticket.Id);
-
-        return MapToResponse(
-            createdTicket ?? ticket);
+        return MapToResponse(createdTicket ?? ticket);
     }
 
     // =========================================================
     // UPDATE TICKET
     // =========================================================
 
-    public async Task<bool> UpdateAsync(
-        int id,
-        TicketUpdateRequest dto)
+    public async Task<bool> UpdateAsync(int id, TicketUpdateRequest dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
 
@@ -294,9 +249,7 @@ public class TicketService : ITicketService
                 nameof(id));
         }
 
-        var existingTicket =
-            await _ticketRepository
-                .GetByIdAsync(id);
+        var existingTicket = await _ticketRepository.GetByIdAsync(id);
 
         if (existingTicket == null)
             return false;
@@ -310,28 +263,17 @@ public class TicketService : ITicketService
                 nameof(dto.Status));
         }
 
-        var allowedStatuses =
-            new[]
-            {
-                "Confirmed",
-                "Waiting",
-                "Cancelled"
-            };
+        var allowedStatuses = new[] { "Confirmed", "Waiting", "Cancelled" };
 
-        if (!allowedStatuses.Contains(
-                status,
-                StringComparer.OrdinalIgnoreCase))
+        if (!allowedStatuses.Contains(status, StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 "Ticket status must be Confirmed, Waiting, or Cancelled.",
                 nameof(dto.Status));
         }
 
-        status =
-            allowedStatuses.First(
-                x => x.Equals(
-                    status,
-                    StringComparison.OrdinalIgnoreCase));
+        status = allowedStatuses.First(x =>
+            x.Equals(status, StringComparison.OrdinalIgnoreCase));
 
         if (string.Equals(
                 existingTicket.Status,
@@ -343,21 +285,18 @@ public class TicketService : ITicketService
                 "A cancelled ticket cannot be changed to another status.");
         }
 
-        if (status == "Confirmed" &&
-            !dto.SeatId.HasValue)
+        if (status == "Confirmed" && !dto.SeatId.HasValue)
         {
             throw new InvalidOperationException(
                 "A confirmed ticket must have a seat.");
         }
 
-        var ticket =
-            await _ticketRepository.GetByIdAsync(id);
+        var ticket = await _ticketRepository.GetByIdAsync(id);
 
         if (ticket == null)
             return false;
 
-        var booking =
-            await _bookingRepository.GetByPNRAsync(ticket.PNR);
+        var booking = await _bookingRepository.GetByPNRAsync(ticket.PNR);
 
         if (booking == null)
         {
@@ -375,10 +314,22 @@ public class TicketService : ITicketService
                 "Cancelled",
                 StringComparison.OrdinalIgnoreCase))
         {
+            // Load Trip để tính phí hủy chính xác
+            var ticketWithNav = await _ticketRepository
+                .GetByIdWithBookingAndTripAsync(ticket.Id);
+
+            var trip = ticketWithNav?.Booking?.Trip;
+
+            if (trip == null)
+            {
+                throw new KeyNotFoundException(
+                    $"Trip for booking '{ticket.PNR}' was not found.");
+            }
+
             await CancelTicketInternalAsync(
                 ticket,
                 booking,
-                null,
+                trip,
                 dto.CancelReason);
         }
         else
@@ -387,36 +338,26 @@ public class TicketService : ITicketService
             // CONFIRMED + SEAT
             // -------------------------------------------------
 
-            if (status == "Confirmed" &&
-                dto.SeatId.HasValue)
+            if (status == "Confirmed" && dto.SeatId.HasValue)
             {
-                var seatId =
-                    dto.SeatId.Value;
+                var seatId = dto.SeatId.Value;
 
-                if (!await _ticketRepository
-                        .SeatExistsAsync(seatId))
+                if (!await _seatService.SeatExistsAsync(seatId))
                 {
                     throw new KeyNotFoundException(
                         $"Seat {seatId} was not found.");
                 }
 
-                if (!await _ticketRepository
-                        .SeatBelongsToTripAsync(
-                            seatId,
-                            ticket.PNR))
+                if (!await _seatService.SeatBelongsToTripAsync(seatId, ticket.PNR))
                 {
                     throw new InvalidOperationException(
                         $"Seat {seatId} does not belong to the booking trip.");
                 }
 
-                var alreadyBooked =
-                    await _ticketRepository
-                        .SeatIsAlreadyBookedAsync(
-                            seatId,
-                            ticket.PNR);
+                var alreadyBooked = await _seatService
+                    .SeatIsAlreadyBookedAsync(seatId, ticket.PNR);
 
-                if (alreadyBooked &&
-                    seatId != ticket.SeatId)
+                if (alreadyBooked && seatId != ticket.SeatId)
                 {
                     throw new InvalidOperationException(
                         $"Seat {seatId} is already booked.");
@@ -431,15 +372,8 @@ public class TicketService : ITicketService
 
         await _ticketRepository.UpdateAsync(ticket);
 
-        var total =
-            await _ticketRepository
-                .GetTotalFareByPNRAsync(
-                    ticket.PNR);
-
-        await _bookingRepository
-            .UpdateTotalAmountAsync(
-                ticket.PNR,
-                total);
+        var total = await _ticketRepository.GetTotalFareByPNRAsync(ticket.PNR);
+        await _bookingRepository.UpdateTotalAmountAsync(ticket.PNR, total);
 
         return true;
     }
@@ -449,22 +383,16 @@ public class TicketService : ITicketService
     // PUT /api/tickets/{pnr}/cancel
     // =========================================================
 
-    public async Task<bool> CancelAsync(
-        string pnr,
-        string reason)
+    public async Task<bool> CancelAsync(string pnr, string reason)
     {
         if (string.IsNullOrWhiteSpace(pnr))
         {
-            throw new ArgumentException(
-                "PNR is required.",
-                nameof(pnr));
+            throw new ArgumentException("PNR is required.", nameof(pnr));
         }
 
         pnr = pnr.Trim();
 
-        var booking =
-            await _bookingRepository
-                .GetByPNRAsync(pnr);
+        var booking = await _bookingRepository.GetByPNRAsync(pnr);
 
         if (booking == null)
             return false;
@@ -477,25 +405,35 @@ public class TicketService : ITicketService
             return false;
         }
 
-        var tickets =
-            (await _ticketRepository
-                .GetByPNRAsync(pnr))
-            .ToList();
+        var tickets = (await _ticketRepository.GetByPNRAsync(pnr)).ToList();
 
         if (!tickets.Any())
             return false;
 
-        var activeTickets =
-            tickets
-                .Where(t =>
-                    !string.Equals(
-                        t.Status,
-                        "Cancelled",
-                        StringComparison.OrdinalIgnoreCase))
-                .ToList();
+        var activeTickets = tickets
+            .Where(t => !string.Equals(
+                t.Status,
+                "Cancelled",
+                StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         if (!activeTickets.Any())
             return false;
+
+        // -------------------------------------------------
+        // Load Trip 1 lần (dùng chung cho mọi ticket)
+        // -------------------------------------------------
+
+        var firstTicketWithNav = await _ticketRepository
+            .GetByIdWithBookingAndTripAsync(activeTickets[0].Id);
+
+        var trip = firstTicketWithNav?.Booking?.Trip;
+
+        if (trip == null)
+        {
+            throw new KeyNotFoundException(
+                $"Trip for booking '{pnr}' was not found.");
+        }
 
         // -------------------------------------------------
         // Hủy từng ticket
@@ -503,12 +441,7 @@ public class TicketService : ITicketService
 
         foreach (var ticket in activeTickets)
         {
-            await CancelTicketInternalAsync(
-                ticket,
-                booking,
-                null,
-                reason);
-
+            await CancelTicketInternalAsync(ticket, booking, trip, reason);
             await _ticketRepository.UpdateAsync(ticket);
         }
 
@@ -522,8 +455,7 @@ public class TicketService : ITicketService
         // Tổng tiền active = 0
         // -------------------------------------------------
 
-        await _bookingRepository
-            .UpdateTotalAmountAsync(pnr, 0);
+        await _bookingRepository.UpdateTotalAmountAsync(pnr, 0);
 
         return true;
     }
@@ -535,114 +467,85 @@ public class TicketService : ITicketService
     private async Task CancelTicketInternalAsync(
         Ticket ticket,
         Booking booking,
-        Trip? trip,
+        Trip trip,
         string? reason)
     {
-        var cancelReason =
-            string.IsNullOrWhiteSpace(reason)
-                ? "Ticket cancelled by user."
-                : reason.Trim();
+        var cancelReason = string.IsNullOrWhiteSpace(reason)
+            ? "Ticket cancelled by user."
+            : reason.Trim();
 
         // -----------------------------------------------------
         // DEPARTURE DATETIME
         // -----------------------------------------------------
 
+        var departureDateTime = trip.JourneyDate.Date.Add(trip.DepartureTime);
+        var hoursBeforeDeparture = (departureDateTime - DateTime.UtcNow).TotalHours;
+
+        // -----------------------------------------------------
+        // CANCELLATION RULE
+        // -----------------------------------------------------
+
         decimal cancellationFee = 0;
         int? cancellationRuleId = null;
 
-        if (trip != null)
+        var rules = await _cancellationRuleService.GetAllAsync();
+
+        var selectedRule = rules
+            .Where(r => hoursBeforeDeparture >= r.HoursBeforeDeparture)
+            .OrderByDescending(r => r.HoursBeforeDeparture)
+            .FirstOrDefault();
+
+        if (selectedRule != null)
         {
-            var departureDateTime =
-                trip.JourneyDate.Date
-                    .Add(trip.DepartureTime);
+            cancellationRuleId = selectedRule.Id;
 
-            var hoursBeforeDeparture =
-                (departureDateTime - DateTime.UtcNow)
-                .TotalHours;
-
-            // -----------------------------------------------------
-            // CANCELLATION RULE
-            // -----------------------------------------------------
-
-            var rules =
-                await _cancellationRuleService
-                    .GetAllAsync();
-
-            var selectedRule =
-                rules
-                    .Where(r =>
-                        hoursBeforeDeparture >=
-                        r.HoursBeforeDeparture)
-                    .OrderByDescending(
-                        r => r.HoursBeforeDeparture)
-                    .FirstOrDefault();
-
-            if (selectedRule != null)
+            if (string.Equals(
+                    selectedRule.FeeType,
+                    "PERCENTAGE",
+                    StringComparison.OrdinalIgnoreCase))
             {
-                cancellationRuleId =
-                    selectedRule.Id;
-
-                if (string.Equals(
-                        selectedRule.FeeType,
-                        "PERCENTAGE",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    cancellationFee =
-                        ticket.Fare *
-                        selectedRule.FeeValue /
-                        100m;
-                }
-                else if (string.Equals(
-                        selectedRule.FeeType,
-                        "FLAT",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    cancellationFee =
-                        selectedRule.FeeValue;
-                }
-
-                if (cancellationFee <
-                    selectedRule.MinFee)
-                {
-                    cancellationFee =
-                        selectedRule.MinFee;
-                }
+                cancellationFee = ticket.Fare * selectedRule.FeeValue / 100m;
+            }
+            else if (string.Equals(
+                    selectedRule.FeeType,
+                    "FLAT",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                cancellationFee = selectedRule.FeeValue;
             }
 
-            if (cancellationFee > ticket.Fare)
+            if (cancellationFee < selectedRule.MinFee)
             {
-                cancellationFee = ticket.Fare;
+                cancellationFee = selectedRule.MinFee;
             }
+        }
+
+        if (cancellationFee > ticket.Fare)
+        {
+            cancellationFee = ticket.Fare;
         }
 
         // -----------------------------------------------------
         // REFUND
         // -----------------------------------------------------
 
-        var existingRefund =
-            await _refundService
-                .GetByTicketIdAsync(ticket.Id);
+        var existingRefund = await _refundService.GetByTicketIdAsync(ticket.Id);
 
         if (existingRefund == null)
         {
-            var refundRequest =
-                new RefundCreateRequest
-                {
-                    TicketId = ticket.Id,
-                    CancellationRuleId =
-                        cancellationRuleId,
-                    AmountPaid =
-                        ticket.Fare,
-                    CancellationFee =
-                        cancellationFee
-                };
+            var refundRequest = new RefundCreateRequest
+            {
+                TicketId = ticket.Id,
+                CancellationRuleId = cancellationRuleId,
+                AmountPaid = ticket.Fare,
+                CancellationFee = cancellationFee
+            };
 
-            await _refundService
-                .CreateAsync(refundRequest);
+            await _refundService.CreateAsync(refundRequest);
         }
 
         // -----------------------------------------------------
-        // UPDATE TICKET
+        // UPDATE TICKET (giải phóng ghế + đánh dấu cancelled)
         // -----------------------------------------------------
 
         ticket.SeatId = null;
@@ -655,15 +558,12 @@ public class TicketService : ITicketService
     // CHECK CANCELLABLE
     // =========================================================
 
-    public async Task<bool> IsCancellableAsync(
-        int ticketId)
+    public async Task<bool> IsCancellableAsync(int ticketId)
     {
         if (ticketId <= 0)
             return false;
 
-        var ticket =
-            await _ticketRepository
-                .GetByIdAsync(ticketId);
+        var ticket = await _ticketRepository.GetByIdAsync(ticketId);
 
         if (ticket == null)
             return false;
@@ -678,28 +578,22 @@ public class TicketService : ITicketService
     // GET CANCELLATION CONTEXT
     // =========================================================
 
-    public async Task<TicketResponse?>
-        GetCancellationContextAsync(
-            int ticketId)
+    public async Task<TicketResponse?> GetCancellationContextAsync(int ticketId)
     {
         if (ticketId <= 0)
             return null;
 
-        var ticket =
-            await _ticketRepository
-                .GetByIdWithBookingAndTripAsync(
-                    ticketId);
+        var ticket = await _ticketRepository
+            .GetByIdWithBookingAndTripAsync(ticketId);
 
         if (ticket == null)
             return null;
 
         if (ticket.Booking == null)
-            throw new KeyNotFoundException(
-                "Booking not found.");
+            throw new KeyNotFoundException("Booking not found.");
 
         if (ticket.Booking.Trip == null)
-            throw new KeyNotFoundException(
-                "Trip not found.");
+            throw new KeyNotFoundException("Trip not found.");
 
         return MapToResponse(ticket);
     }
@@ -717,9 +611,7 @@ public class TicketService : ITicketService
                 nameof(id));
         }
 
-        var ticket =
-            await _ticketRepository
-                .GetByIdAsync(id);
+        var ticket = await _ticketRepository.GetByIdAsync(id);
 
         if (ticket == null)
             return false;
@@ -733,8 +625,7 @@ public class TicketService : ITicketService
                 "A cancelled ticket should not be deleted.");
         }
 
-        return await _ticketRepository
-            .DeleteAsync(id);
+        return await _ticketRepository.DeleteAsync(id);
     }
 
     // =========================================================
@@ -750,23 +641,14 @@ public class TicketService : ITicketService
             // =================================================
 
             Id = ticket.Id,
-
             PNR = ticket.PNR,
-
             SeatId = ticket.SeatId,
-
             PassengerName = ticket.PassengerName,
-
             Age = ticket.Age,
-
             Gender = ticket.Gender,
-
             Fare = ticket.Fare,
-
             Status = ticket.Status,
-
             CancelReason = ticket.CancelReason,
-
             CancelledAt = ticket.CancelledAt
         };
     }

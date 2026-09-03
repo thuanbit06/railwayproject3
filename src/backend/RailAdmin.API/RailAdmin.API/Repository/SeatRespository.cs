@@ -8,70 +8,142 @@ namespace RailAdmin.API.Repository;
 public class SeatRepository : ISeatRepository
 {
     private readonly AppDbContext _db;
+
     public SeatRepository(AppDbContext db)
     {
         _db = db;
     }
 
+    // =========================================================
+    // GET ALL
+    // =========================================================
+
     public async Task<IEnumerable<Seat>> GetAllAsync()
-        => await _db.Seats
-        .AsNoTracking()
-        .OrderBy(s => s.CoachId)
-        .ThenBy(s => s.SeatNo)
-        .ToListAsync();
+    {
+        return await _db.Seats
+            .AsNoTracking()
+            .Include(s => s.Coach)
+            .OrderBy(s => s.CoachId)
+            .ThenBy(s => s.SeatNo)
+            .ToListAsync();
+    }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
+    public async Task<Seat?> GetByIdAsync(int id)
+    {
+        if (id <= 0)
+            return null;
+
+        return await _db.Seats
+            .AsNoTracking()
+            .Include(s => s.Coach)
+            .FirstOrDefaultAsync(s => s.Id == id);
+    }
+
+    // =========================================================
+    // GET BY COACH
+    // =========================================================
 
     public async Task<IEnumerable<Seat>> GetByCoachIdAsync(int coachId)
-        => await _db.Seats
-        .AsNoTracking()
-        .OrderBy(s => s.CoachId)
-        .ThenBy(s => s.SeatNo)
-        .Where(s => s.CoachId == coachId)
-        .ToListAsync();
+    {
+        if (coachId <= 0)
+            return Enumerable.Empty<Seat>();
 
-    public async Task<Seat?> GetByIdAsync(int id) {     
         return await _db.Seats
-        .AsNoTracking()
-        .FirstOrDefaultAsync(s => s.Id == id);
+            .AsNoTracking()
+            .Include(s => s.Coach)
+            .Where(s => s.CoachId == coachId)
+            .OrderBy(s => s.SeatNo)
+            .ToListAsync();
     }
 
     // =========================================================
-    // CHECK COACH
+    // CHECK EXISTS
     // =========================================================
 
-    public async Task<bool> CoachExistsAsync(int coachId)
+    public async Task<bool> SeatExistsAsync(int seatId)
     {
-        return await _db.TrainCoaches
-            .AnyAsync(c => c.Id == coachId);
+        if (seatId <= 0)
+            return false;
+
+        return await _db.Seats
+            .AsNoTracking()
+            .AnyAsync(s => s.Id == seatId);
     }
 
     // =========================================================
-    // CHECK SEAT NUMBER
+    // SEAT BELONGS TO TRIP
+    // (Seat → Coach → Train → Trip)
     // =========================================================
 
-    public async Task<bool> SeatNoExistsAsync(
-        int coachId,
-        string seatNo,
-        int? excludeId = null)
+    public async Task<bool> SeatBelongsToTripAsync(int seatId, string pnr)
     {
-        var query = _db.Seats
-            .Where(s =>
-                s.CoachId == coachId &&
-                s.SeatNo == seatNo);
+        if (seatId <= 0 || string.IsNullOrWhiteSpace(pnr))
+            return false;
 
-        if (excludeId.HasValue)
-        {
-            query = query.Where(
-                s => s.Id != excludeId.Value);
-        }
+        pnr = pnr.Trim();
 
-        return await query.AnyAsync();
+        var booking = await _db.Bookings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.PNR == pnr);
+
+        if (booking == null)
+            return false;
+
+        var trip = await _db.Trips
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == booking.TripId);
+
+        if (trip == null)
+            return false;
+
+        return await _db.Seats
+            .AsNoTracking()
+            .Include(s => s.Coach)
+            .AnyAsync(s =>
+                s.Id == seatId &&
+                s.Coach != null &&
+                s.Coach.TrainId == trip.TrainId);
+    }
+
+    // =========================================================
+    // SEAT IS ALREADY BOOKED (trong cùng PNR / Trip)
+    // =========================================================
+
+    public async Task<bool> SeatIsAlreadyBookedAsync(int seatId, string pnr)
+    {
+        if (seatId <= 0 || string.IsNullOrWhiteSpace(pnr))
+            return false;
+
+        pnr = pnr.Trim();
+
+        // Lấy TripId từ booking hiện tại
+        var booking = await _db.Bookings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.PNR == pnr);
+
+        if (booking == null)
+            return false;
+
+        // Kiểm tra ghế đã được gán cho ticket Confirmed của cùng Trip chưa
+        return await _db.Tickets
+            .AsNoTracking()
+            .Include(t => t.Booking)
+            .AnyAsync(t =>
+                t.SeatId == seatId &&
+                t.Booking != null &&
+                t.Booking.TripId == booking.TripId &&
+                t.Status == "Confirmed");
     }
 
     // =========================================================
     // CREATE
     // =========================================================
 
-    public async Task<Seat> CreateAsync(Seat seat)
+    public async Task<Seat> AddAsync(Seat seat)
     {
         _db.Seats.Add(seat);
         await _db.SaveChangesAsync();
@@ -86,8 +158,14 @@ public class SeatRepository : ISeatRepository
     {
         var existing = await _db.Seats
             .FirstOrDefaultAsync(s => s.Id == seat.Id);
-        if (existing == null) return false;
+
+        if (existing == null)
+            return false;
+
+        existing.CoachId = seat.CoachId;
         existing.SeatNo = seat.SeatNo;
+        existing.BerthType = seat.BerthType;
+
         await _db.SaveChangesAsync();
         return true;
     }
@@ -98,38 +176,22 @@ public class SeatRepository : ISeatRepository
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var item =
-            await _db.Seats
-                .FirstOrDefaultAsync(s => s.Id == id);
+        var seat = await _db.Seats
+            .FirstOrDefaultAsync(s => s.Id == id);
 
-        if (item == null)
+        if (seat == null)
             return false;
 
-        _db.Seats.Remove(item);
+        // Không cho xóa nếu ghế đang được dùng
+        var isInUse = await _db.Tickets
+            .AnyAsync(t => t.SeatId == id && t.Status != "Cancelled");
 
+        if (isInUse)
+            throw new InvalidOperationException(
+                "Cannot delete a seat that is currently assigned to an active ticket.");
+
+        _db.Seats.Remove(seat);
         await _db.SaveChangesAsync();
-
         return true;
-    }
-
-    public async Task<bool> IsAvailableAsync(int seatId) 
-    { 
-        return !await _db.Tickets
-            .AsNoTracking()
-            .AnyAsync(t => t.SeatId == seatId && t.Status == "Confirmed"); 
-    }
-    public async Task<bool> IsOwnedByTicketAsync(int seatId, int ticketId) 
-    {
-        return await _db.Tickets
-            .AsNoTracking()
-            .AnyAsync(t => t.Id == ticketId && t.SeatId == seatId && t.Status == "Confirmed"); 
-    }
-
-    public async Task<bool> ReleaseAsync(int seatId)
-    {
-        var seat = await _db.Seats
-            .FirstOrDefaultAsync(s => s.Id == seatId);
-
-        return seat != null;
     }
 }

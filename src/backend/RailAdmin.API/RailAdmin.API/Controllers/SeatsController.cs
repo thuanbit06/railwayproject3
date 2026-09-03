@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RailAdmin.API.DTOs.Request.Seat;
+using RailAdmin.API.DTOs.Response;
 using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
@@ -10,159 +11,153 @@ namespace RailAdmin.API.Controllers;
 [Authorize(Roles = "Admin")]
 public class SeatsController : ControllerBase
 {
-    private readonly ISeatService _service;
+    private readonly ISeatService _seatService;
 
-    public SeatsController(ISeatService service)
+    public SeatsController(ISeatService seatService)
     {
-        _service = service;
+        _seatService = seatService;
     }
 
     // =========================================================
-    // GET: api/seats
+    // GET ALL
+    // GET /api/seats
     // =========================================================
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<ActionResult<IEnumerable<SeatResponse>>> GetAll()
     {
-        var result = await _service.GetAllAsync();
-
-        return Ok(result);
+        var seats = await _seatService.GetAllAsync();
+        return Ok(seats);
     }
 
     // =========================================================
-    // GET: api/seats/coach/5
-    // =========================================================
-
-    [HttpGet("coach/{coachId:int}")]
-    public async Task<IActionResult> GetByCoachId(
-        int coachId)
-    {
-        var result =
-            await _service.GetByCoachIdAsync(coachId);
-
-        return Ok(result);
-    }
-
-    // =========================================================
-    // GET: api/seats/5
+    // GET BY ID
+    // GET /api/seats/{id}
     // =========================================================
 
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<ActionResult<SeatResponse>> GetById(int id)
     {
-        var result =
-            await _service.GetByIdAsync(id);
+        if (id <= 0)
+            return BadRequest("Seat ID must be greater than 0.");
 
-        if (result == null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message = $"Seat with ID {id} not found."
-            });
-        }
+        var seat = await _seatService.GetByIdAsync(id);
 
-        return Ok(result);
+        if (seat == null)
+            return NotFound($"Seat with ID {id} was not found.");
+
+        return Ok(seat);
     }
 
     // =========================================================
-    // POST: api/seats
+    // GET BY COACH
+    // GET /api/seats/coach/{coachId}
+    // =========================================================
+
+    [HttpGet("coach/{coachId:int}")]
+    public async Task<ActionResult<IEnumerable<SeatResponse>>> GetByCoachId(int coachId)
+    {
+        if (coachId <= 0)
+            return BadRequest("Coach ID must be greater than 0.");
+
+        var seats = await _seatService.GetByCoachIdAsync(coachId);
+        return Ok(seats);
+    }
+
+    // =========================================================
+    // CREATE
+    // POST /api/seats
     // =========================================================
 
     [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] SeatCreateRequest dto)
+    public async Task<ActionResult<SeatResponse>> Create([FromBody] SeatCreateRequest dto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        if (dto == null)
+            return BadRequest("Request body is required.");
 
         try
         {
-            var created =
-                await _service.CreateAsync(dto);
+            var created = await _seatService.CreateAsync(dto);
 
             return CreatedAtAction(
                 nameof(GetById),
                 new { id = created.Id },
                 created);
         }
-        catch (KeyNotFoundException ex)
+        catch (ArgumentException ex)
         {
-            return NotFound(new
-            {
-                success = false,
-                message = ex.Message
-            });
+            return BadRequest(ex.Message);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
-            return Conflict(new
-            {
-                success = false,
-                message = ex.Message
-            });
+            return StatusCode(500, ex.Message);
         }
     }
 
     // =========================================================
-    // PUT: api/seats/5
+    // UPDATE
+    // PUT /api/seats/{id}
     // =========================================================
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(
-        int id,
-        [FromBody] SeatUpdateRequest dto)
+    public async Task<IActionResult> Update(int id, [FromBody] SeatUpdateRequest dto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        if (id <= 0)
+            return BadRequest("Seat ID must be greater than 0.");
+
+        if (dto == null)
+            return BadRequest("Request body is required.");
 
         try
         {
-            var success =
-                await _service.UpdateAsync(id, dto);
+            var updated = await _seatService.UpdateAsync(id, dto);
 
-            if (!success)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message =
-                        $"Seat with ID {id} not found."
-                });
-            }
+            if (!updated)
+                return NotFound($"Seat with ID {id} was not found.");
 
             return NoContent();
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new
-            {
-                success = false,
-                message = ex.Message
-            });
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
         }
     }
 
     // =========================================================
-    // DELETE: api/seats/5
+    // DELETE
+    // DELETE /api/seats/{id}
     // =========================================================
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var success =
-            await _service.DeleteAsync(id);
+        if (id <= 0)
+            return BadRequest("Seat ID must be greater than 0.");
 
-        if (!success)
+        try
         {
-            return NotFound(new
-            {
-                success = false,
-                message =
-                    $"Seat with ID {id} not found."
-            });
-        }
+            var deleted = await _seatService.DeleteAsync(id);
 
-        return NoContent();
+            if (!deleted)
+                return NotFound($"Seat with ID {id} was not found.");
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
     }
 }
