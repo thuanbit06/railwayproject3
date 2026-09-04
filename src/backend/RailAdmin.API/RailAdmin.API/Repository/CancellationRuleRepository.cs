@@ -90,6 +90,10 @@ public class CancellationRuleRepository
         return true;
     }
 
+    // =========================================================
+    // DELETE
+    // =========================================================
+
     public async Task<bool> DeleteAsync(int id)
     {
         var rule = await _db.CancellationRules

@@ -156,7 +156,8 @@ namespace RailAdmin.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PNR");
+                    b.HasIndex("PNR")
+                        .IsUnique();
 
                     b.ToTable("Payments");
                 });
@@ -209,6 +210,10 @@ namespace RailAdmin.API.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BerthType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<int>("CoachId")
                         .HasColumnType("int");
@@ -295,6 +300,9 @@ namespace RailAdmin.API.Migrations
                     b.Property<int?>("SeatId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SeatId1")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -303,6 +311,8 @@ namespace RailAdmin.API.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("SeatId");
+
+                    b.HasIndex("SeatId1");
 
                     b.HasIndex("PNR", "SeatId")
                         .IsUnique()
@@ -493,6 +503,12 @@ namespace RailAdmin.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("OTP")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("OTPExpiry")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -574,8 +590,8 @@ namespace RailAdmin.API.Migrations
             modelBuilder.Entity("RailAdmin.API.Models.Payment", b =>
                 {
                     b.HasOne("RailAdmin.API.Models.Booking", "Booking")
-                        .WithMany()
-                        .HasForeignKey("PNR")
+                        .WithOne()
+                        .HasForeignKey("RailAdmin.API.Models.Payment", "PNR")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -623,6 +639,10 @@ namespace RailAdmin.API.Migrations
                         .WithMany()
                         .HasForeignKey("SeatId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("RailAdmin.API.Models.Seat", null)
+                        .WithMany("Tickets")
+                        .HasForeignKey("SeatId1");
 
                     b.Navigation("Booking");
 
@@ -706,6 +726,11 @@ namespace RailAdmin.API.Migrations
                 });
 
             modelBuilder.Entity("RailAdmin.API.Models.Booking", b =>
+                {
+                    b.Navigation("Tickets");
+                });
+
+            modelBuilder.Entity("RailAdmin.API.Models.Seat", b =>
                 {
                     b.Navigation("Tickets");
                 });

@@ -15,6 +15,10 @@ public class BookingRepository : IBookingRepository
         _db = db;
     }
 
+    // =====================================================
+    // GET ALL
+    // =====================================================
+
     public async Task<IEnumerable<Booking>> GetAllAsync()
     {
         return await _db.Bookings
@@ -23,13 +27,21 @@ public class BookingRepository : IBookingRepository
             .ToListAsync();
     }
 
-    public async Task<Booking?> GetByPNRAsync(
-        string pnr)
+    // =====================================================
+    // GET BY PNR
+    // =====================================================
+
+    public async Task<Booking?> GetByPNRAsync(string pnr)
     {
         return await _db.Bookings
             .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.PNR == pnr);
+            .FirstOrDefaultAsync(
+                b => b.PNR == pnr);
     }
+
+    // =====================================================
+    // GET BY USER
+    // =====================================================
 
     public async Task<IEnumerable<Booking>> GetByUserIdAsync(
         int userId)
@@ -41,12 +53,9 @@ public class BookingRepository : IBookingRepository
             .ToListAsync();
     }
 
-    public async Task<bool> ExistsByPNRAsync(
-        string pnr)
-    {
-        return await _db.Bookings
-            .AnyAsync(b => b.PNR == pnr);
-    }
+    // =====================================================
+    // CREATE
+    // =====================================================
 
     public async Task<Booking> CreateAsync(
         Booking booking)
@@ -58,17 +67,39 @@ public class BookingRepository : IBookingRepository
         return booking;
     }
 
+    // =====================================================
+    // UPDATE
+    // =====================================================
+
+    public async Task<bool> UpdateAsync(Booking booking)
+    {
+        var existing = await _db.Bookings
+            .FirstOrDefaultAsync(b => b.PNR == booking.PNR);
+
+        if (existing == null)
+            return false;
+
+        existing.BookingStatus = booking.BookingStatus;
+
+        await _db.SaveChangesAsync();
+
+        return true;
+    }
+    // =====================================================
+    // UPDATE STATUS
+    // =====================================================
+
     public async Task<bool> UpdateStatusAsync(
         string pnr,
         string status)
     {
-        var booking = await _db.Bookings
-            .FirstOrDefaultAsync(b => b.PNR == pnr);
+        var booking =
+            await _db.Bookings
+                .FirstOrDefaultAsync(
+                    b => b.PNR == pnr);
 
         if (booking == null)
-        {
             return false;
-        }
 
         booking.BookingStatus = status;
 
@@ -77,18 +108,75 @@ public class BookingRepository : IBookingRepository
         return true;
     }
 
-    public async Task<bool> CancelAsync(
-        string pnr)
+    // =====================================================
+    // UPDATE TOTAL AMOUNT
+    // =====================================================
+
+    public async Task UpdateTotalAmountAsync(string pnr, decimal total)
     {
+        if (string.IsNullOrWhiteSpace(pnr))
+            throw new ArgumentException(
+                "PNR is required.",
+                nameof(pnr));
+
         var booking = await _db.Bookings
-            .FirstOrDefaultAsync(b => b.PNR == pnr);
+            .FirstOrDefaultAsync(b => b.PNR == pnr.Trim());
 
         if (booking == null)
-        {
+            throw new KeyNotFoundException(
+                $"Booking with PNR '{pnr}' was not found.");
+
+        booking.TotalAmount = total;
+
+        await _db.SaveChangesAsync();
+    }
+
+    // =====================================================
+    // DELETE
+    // =====================================================
+
+    public async Task<bool> DeleteAsync(string pnr)
+    {
+        var booking =
+            await _db.Bookings
+                .FirstOrDefaultAsync(
+                    b => b.PNR == pnr);
+
+        if (booking == null)
             return false;
-        }
+
+        _db.Bookings.Remove(booking);
+
+        await _db.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> ExistsByPNRAsync(string pnr)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+            return false;
+
+        return await _db.Bookings
+            .AnyAsync(b => b.PNR == pnr.Trim());
+    }
+
+    public async Task<bool> CancelAsync(string pnr)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+            return false;
+
+        var booking = await _db.Bookings
+            .FirstOrDefaultAsync(b => b.PNR == pnr.Trim());
+
+        if (booking == null)
+            return false;
+
+        if (booking.BookingStatus == BookingStatus.Cancelled)
+            return true;
 
         booking.BookingStatus = BookingStatus.Cancelled;
+        booking.TotalAmount = 0;
 
         await _db.SaveChangesAsync();
 

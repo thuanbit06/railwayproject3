@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RailAdmin.API.Data;
+using RailAdmin.API.DTOs.Request.Refund;
 using RailAdmin.API.Models;
 using RailAdmin.API.Repository.IRepository;
 using System.Net.Sockets;
@@ -22,6 +23,10 @@ public class RefundRepository : IRefundRepository
             .OrderByDescending(r => r.RefundDate)
             .ToListAsync();
     }
+
+    // =========================================================
+    // GET BY ID
+    // =========================================================
 
     public async Task<Refund?> GetByIdAsync(int id)
     {
@@ -49,6 +54,8 @@ public class RefundRepository : IRefundRepository
     public async Task<Refund> CreateAsync(
         Refund refund)
     {
+        ArgumentNullException.ThrowIfNull(refund);
+
         _db.Refunds.Add(refund);
 
         await _db.SaveChangesAsync();
@@ -56,21 +63,41 @@ public class RefundRepository : IRefundRepository
         return refund;
     }
 
-    public async Task<bool> UpdateStatusAsync(
-        int id,
-        string status,
-        string reason) // added parameter to match the interface
+    // =========================================================
+    // UPDATE
+    // =========================================================
+
+    public async Task<bool> UpdateAsync(Refund refund)
     {
         var existing =
             await _db.Refunds
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == refund.Id);
 
         if (existing == null)
         {
             return false;
         }
 
-        existing.RefundStatus = status;
+        ArgumentNullException.ThrowIfNull(refund);
+
+
+        existing.CancellationRuleId =
+            refund.CancellationRuleId;
+
+        existing.AmountPaid =
+            refund.AmountPaid;
+
+        existing.CancellationFee =
+            refund.CancellationFee;
+
+        existing.RefundAmount =
+            refund.RefundAmount;
+
+        existing.RefundStatus =
+            refund.RefundStatus;
+
+        existing.RefundDate =
+            refund.RefundDate;
 
         // If you need to persist the reason, set a property here, e.g.:
         // existing.Reason = reason;
@@ -80,6 +107,10 @@ public class RefundRepository : IRefundRepository
 
         return true;
     }
+
+    // =========================================================
+    // DELETE
+    // =========================================================
 
     public async Task<bool> DeleteAsync(int id)
     {
@@ -99,16 +130,35 @@ public class RefundRepository : IRefundRepository
         return true;
     }
 
-    public async Task<bool> UpdateAsync(Refund refund)
+    public async Task<bool> UpdateStatusAsync(int id, string status, string reason)
     {
-        //var existing = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticket.Id);
-        //if (existing == null) return false;
-        //existing.SeatId = ticket.SeatId;
-        //existing.Status = ticket.Status;
-        //existing.CancelReason = ticket.CancelReason;
-        //if (ticket.Status == "Cancelled" && existing.CancelledAt == null)
-        //    existing.CancelledAt = DateTime.UtcNow;
-        //await _db.SaveChangesAsync();
+        if (id <= 0)
+        {
+            throw new ArgumentException(
+                "Refund ID must be greater than 0.",
+                nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            throw new ArgumentException(
+                "Refund status is required.",
+                nameof(status));
+        }
+
+        var refund = await _db.Refunds
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (refund == null)
+        {
+            return false;
+        }
+
+        refund.RefundStatus = status.Trim();
+        refund.FailureReason = reason.Trim();
+
+        await _db.SaveChangesAsync();
+
         return true;
     }
 

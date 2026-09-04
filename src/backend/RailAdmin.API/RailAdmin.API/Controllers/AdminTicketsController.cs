@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RailAdmin.API.Data;
-using RailAdmin.API.DTOs.Response;
 using RailAdmin.API.DTOs.Request.Ticket;
+using RailAdmin.API.DTOs.Response;
+using RailAdmin.API.Services.IService;
 
 namespace RailAdmin.API.Controllers;
 
@@ -12,106 +11,299 @@ namespace RailAdmin.API.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminTicketsController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly ITicketService _ticketService;
 
-    public AdminTicketsController(AppDbContext db)
+    public AdminTicketsController(
+        ITicketService ticketService)
     {
-        _db = db;
+        _ticketService = ticketService;
     }
 
     // =====================================================
-    // GET: /api/admin/tickets
+    // GET ALL TICKETS
+    // GET /api/admin/tickets
     // =====================================================
+
     [HttpGet]
-    [ProducesResponseType(typeof(List<TicketAdminResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(IEnumerable<TicketResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(
+        StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetTickets()
     {
-        var tickets = await _db.Tickets
-            .AsNoTracking()
-            .OrderByDescending(t => t.Id)
-            .Select(t => new TicketAdminResponseDto
-            {
-                Id = t.Id,
-                Pnr = t.PNR,
-                PassengerName = t.PassengerName,
-                Age = t.Age,
-                Gender = t.Gender,
-                SeatId = t.SeatId,
-                SeatNo = t.Seat != null ? t.Seat.SeatNo : "N/A",
-                CoachNo = t.Seat != null && t.Seat.Coach != null ? t.Seat.Coach.CoachNo : "N/A",
-                Fare = t.Fare,
-                Status = t.Status,
-
-                TrainName = t.Booking != null && t.Booking.Trip != null && t.Booking.Trip.Train != null
-                    ? t.Booking.Trip.Train.TrainName
-                    : "N/A",
-
-                TrainNo = t.Booking != null && t.Booking.Trip != null && t.Booking.Trip.Train != null
-                    ? t.Booking.Trip.Train.TrainNo
-                    : "N/A",
-
-                FromStation = t.Booking != null && t.Booking.Trip != null && t.Booking.Trip.FromStation != null
-                    ? t.Booking.Trip.FromStation.Name
-                    : "N/A",
-
-                ToStation = t.Booking != null && t.Booking.Trip != null && t.Booking.Trip.ToStation != null
-                    ? t.Booking.Trip.ToStation.Name
-                    : "N/A",
-
-                JourneyDate = t.Booking != null && t.Booking.Trip != null
-                    ? t.Booking.Trip.JourneyDate
-                    : null,
-
-                DepartureTime = t.Booking != null && t.Booking.Trip != null
-                    ? t.Booking.Trip.DepartureTime
-                    : null,
-
-                BookingStatus = t.Booking != null ? t.Booking.BookingStatus : "N/A",
-                BookedBy = t.Booking != null && t.Booking.User != null ? t.Booking.User.Name : "N/A"
-            })
-            .ToListAsync();
+        var tickets =
+            await _ticketService.GetAllAsync();
 
         return Ok(tickets);
     }
 
+
     // =====================================================
-    // PUT/PATCH: /api/admin/tickets/{id}/cancel
+    // GET TICKET BY ID
+    // GET /api/admin/tickets/{id}
     // =====================================================
-    [HttpPut("{id}/cancel")]
-    [ProducesResponseType(typeof(ApiResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponseDto), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> CancelTicket(int id, [FromBody] CancelTicketRequestDto request)
+
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(
+        typeof(TicketResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTicketById(
+        int id)
     {
-        var ticket = await _db.Tickets.FindAsync(id);
+        if (id <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Ticket ID không hợp lệ."
+            });
+        }
+
+        var ticket =
+            await _ticketService.GetByIdAsync(id);
 
         if (ticket == null)
-            return NotFound(new ApiResponseDto { Success = false, Message = "Ticket not found." });
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy vé."
+            });
+        }
 
-        ticket.Status = "Cancelled";
-        ticket.CancelReason = request.Reason ?? "Cancelled by admin";
-        ticket.CancelledAt = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        return Ok(new ApiResponseDto { Success = true, Message = "Ticket cancelled successfully." });
+        return Ok(ticket);
     }
 
+
     // =====================================================
-    // DELETE: /api/admin/tickets/{id}
+    // GET TICKETS BY PNR
+    // GET /api/admin/tickets/pnr/{pnr}
     // =====================================================
-    [HttpDelete("{id}")]
-    [ProducesResponseType(typeof(ApiResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponseDto), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteTicket(int id)
+
+    [HttpGet("pnr/{pnr}")]
+    [ProducesResponseType(
+        typeof(IEnumerable<TicketResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByPNR(
+        string pnr)
     {
-        var ticket = await _db.Tickets.FindAsync(id);
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "PNR không được để trống."
+            });
+        }
 
-        if (ticket == null)
-            return NotFound(new ApiResponseDto { Success = false, Message = "Ticket not found." });
+        var tickets =
+            await _ticketService.GetByPNRAsync(pnr);
 
-        _db.Tickets.Remove(ticket);
-        await _db.SaveChangesAsync();
+        if (!tickets.Any())
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = $"Không tìm thấy vé với PNR '{pnr}'."
+            });
+        }
 
-        return Ok(new ApiResponseDto { Success = true, Message = "Ticket deleted successfully." });
+        return Ok(tickets);
+    }
+
+
+    // =====================================================
+    // CANCEL TICKET
+    // PUT /api/admin/tickets/{id}/cancel
+    // =====================================================
+
+    [HttpPut("{pnr}/cancel")]
+    public async Task<IActionResult> Cancel(
+    string pnr,
+    [FromBody] CancelTicketRequestDto? request)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "PNR không được để trống."
+            });
+        }
+
+        try
+        {
+            var reason = string.IsNullOrWhiteSpace(request?.Reason)
+                ? "Cancelled by user"
+                : request.Reason.Trim();
+
+            var result = await _ticketService.CancelAsync(
+                pnr.Trim(),
+                reason);
+
+            if (!result)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Không thể hủy vé. PNR không tồn tại hoặc vé đã được hủy."
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Hủy vé thành công.",
+                pnr = pnr.Trim()
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+
+    // =====================================================
+    // CHECK CANCELLABLE
+    // GET /api/admin/tickets/{id}/cancellable
+    // =====================================================
+
+    [HttpGet("{id:int}/cancellable")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> IsCancellable(
+        int id)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Ticket ID không hợp lệ."
+            });
+        }
+
+        var result =
+            await _ticketService.IsCancellableAsync(id);
+
+        return Ok(new
+        {
+            ticketId = id,
+            cancellable = result
+        });
+    }
+
+
+    // =====================================================
+    // GET CANCELLATION CONTEXT
+    // GET /api/admin/tickets/{id}/cancellation-context
+    // =====================================================
+
+    [HttpGet("{id:int}/cancellation-context")]
+    [ProducesResponseType(
+        typeof(TicketResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
+    public async Task<IActionResult>
+        GetCancellationContext(int id)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Ticket ID không hợp lệ."
+            });
+        }
+
+        var result =
+            await _ticketService
+                .GetCancellationContextAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy vé."
+            });
+        }
+
+        return Ok(result);
+    }
+
+
+    // =====================================================
+    // DELETE
+    // DELETE /api/admin/tickets/{id}
+    // =====================================================
+
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(
+        typeof(ApiResponseDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponseDto),
+        StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteTicket(
+        int id)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(new ApiResponseDto
+            {
+                Success = false,
+                Message = "Ticket ID không hợp lệ."
+            });
+        }
+
+        try
+        {
+            var result =
+                await _ticketService.DeleteAsync(id);
+
+            if (!result)
+            {
+                return NotFound(new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "Ticket not found."
+                });
+            }
+
+            return Ok(new ApiResponseDto
+            {
+                Success = true,
+                Message = "Ticket deleted successfully."
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponseDto
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
     }
 }

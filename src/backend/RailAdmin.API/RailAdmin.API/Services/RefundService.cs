@@ -11,8 +11,6 @@ namespace RailAdmin.API.Services;
 public class RefundService : IRefundService
 {
     private readonly IRefundRepository _refundRepository;
-    private readonly ICancellationService _cancellationService;
-    private readonly ITicketService _ticketService;
     private readonly ISeatService _seatService;
     private readonly IPaymentGateway _paymentGateway;
     private readonly IPaymentRepository _paymentRepository;
@@ -170,43 +168,18 @@ public class RefundService : IRefundService
         return MapToResponse(created);
     }
 
+
     // =========================================================
-    // CREATE REFUND FROM CALCULATION
+    // PROCESS REFUND
     // =========================================================
 
-    public async Task<RefundResponse>
-        CreateFromCalculationAsync(
-            int ticketId)
+    public async Task<RefundResponse> ProcessAsync(int refundId)
     {
-        // 1. Check duplicate
-        var existing =
-            await _refundRepository.GetByTicketIdAsync(
-                ticketId);
-
-        if (existing != null)
+        if (refundId <= 0)
         {
-            throw new InvalidOperationException(
-                $"Refund already exists for Ticket {ticketId}.");
-        }
-
-        // 2. Calculate cancellation
-        var calculation =
-            await _cancellationService
-                .CalculateCancellationAsync(
-                    ticketId);
-
-        if (calculation == null)
-        {
-            throw new InvalidOperationException(
-                "Unable to calculate cancellation.");
-        }
-
-        // 3. Check cancellation allowed
-        if (!calculation.CanCancel)
-        {
-            throw new InvalidOperationException(
-                calculation.RejectReason
-                ?? "Cancellation is not allowed.");
+            throw new ArgumentException(
+                "Refund ID must be greater than 0.",
+                nameof(refundId));
         }
 
         // 4. Create refund PENDING
@@ -559,5 +532,39 @@ public class RefundService : IRefundService
             RefundDate =
                 r.RefundDate
         };
+    }
+
+public async Task<bool> UpdateAsync(
+    int id,
+    RefundUpdateRequest dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (id <= 0)
+        {
+            throw new ArgumentException(
+                "Refund ID must be greater than 0.",
+                nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.RefundStatus))
+        {
+            throw new ArgumentException(
+                "Refund status is required.",
+                nameof(dto.RefundStatus));
+        }
+
+        var refund = await _refundRepository
+            .GetByIdAsync(id);
+
+        if (refund == null)
+        {
+            return false;
+        }
+
+        return await _refundRepository
+            .UpdateStatusAsync(
+                id,
+                dto.RefundStatus.Trim());
     }
 }

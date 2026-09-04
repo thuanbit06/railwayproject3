@@ -10,12 +10,22 @@ namespace RailAdmin.API.Services;
 public class BookingService : IBookingService
 {
     private readonly IBookingRepository _bookingRepository;
+    private readonly ITicketRepository _ticketRepository;
+    private readonly IPaymentService _paymentService;
 
     public BookingService(
-        IBookingRepository bookingRepository)
+        IBookingRepository bookingRepository,
+        ITicketRepository ticketRepository,
+        IPaymentService paymentService)
     {
         _bookingRepository = bookingRepository;
+        _ticketRepository = ticketRepository;
+        _paymentService = paymentService;
     }
+
+    // =========================================================
+    // GET ALL BOOKINGS
+    // =========================================================
 
     public async Task<IEnumerable<BookingResponse>> GetAllAsync()
     {
@@ -24,8 +34,11 @@ public class BookingService : IBookingService
         return bookings.Select(MapToResponse);
     }
 
-    public async Task<BookingResponse?> GetByPNRAsync(
-        string pnr)
+    // =========================================================
+    // GET BOOKING BY PNR
+    // =========================================================
+
+    public async Task<BookingResponse?> GetByPNRAsync(string pnr)
     {
         if (string.IsNullOrWhiteSpace(pnr))
         {
@@ -42,6 +55,10 @@ public class BookingService : IBookingService
             : MapToResponse(booking);
     }
 
+    // =========================================================
+    // GET BOOKINGS BY USER
+    // =========================================================
+
     public async Task<IEnumerable<BookingResponse>> GetByUserIdAsync(
         int userId)
     {
@@ -57,6 +74,10 @@ public class BookingService : IBookingService
 
         return bookings.Select(MapToResponse);
     }
+
+    // =========================================================
+    // CREATE BOOKING
+    // =========================================================
 
     public async Task<BookingResponse> CreateAsync(
         BookingCreateRequest dto)
@@ -111,15 +132,12 @@ public class BookingService : IBookingService
             return false;
         }
 
-        ValidateStatusTransition(
-            booking.BookingStatus,
-            dto.BookingStatus);
+        ValidateStatusTransition(booking.BookingStatus, dto.BookingStatus);
 
         return await _bookingRepository.UpdateStatusAsync(
             booking.PNR,
             dto.BookingStatus);
     }
-
     public async Task<bool> CancelAsync(string pnr)
     {
         if (string.IsNullOrWhiteSpace(pnr))
@@ -179,6 +197,273 @@ public class BookingService : IBookingService
             "Unable to generate a unique PNR.");
     }
 
+
+    private static BookingResponse MapToResponse(
+        Booking booking)
+    {
+        return new BookingResponse
+        {
+            PNR = booking.PNR,
+            UserId = booking.UserId,
+            TripId = booking.TripId,
+            TotalPassengers = booking.TotalPassengers,
+            TotalAmount = booking.TotalAmount,
+            BookingStatus = booking.BookingStatus,
+            BookingDate = booking.BookingDate
+        };
+    }
+    // =========================================================
+    // UPDATE BOOKING STATUS
+    // =========================================================
+
+    public async Task<bool> UpdateAsync(
+        string pnr,
+        BookingUpdateRequest dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            throw new ArgumentException(
+                "PNR is required.",
+                nameof(pnr));
+        }
+
+        pnr = pnr.Trim();
+
+        // -----------------------------------------------------
+        // Get existing booking
+        // -----------------------------------------------------
+
+        var booking =
+            await _bookingRepository.GetByPNRAsync(pnr);
+
+        if (booking == null)
+        {
+            return false;
+        }
+
+        // -----------------------------------------------------
+        // Validate status
+        // -----------------------------------------------------
+
+        ValidateStatusTransition(
+            booking.BookingStatus,
+            dto.BookingStatus);
+
+        // Normalize status to the constant value.
+        var status = GetNormalizedStatus(dto.BookingStatus);
+
+        // -----------------------------------------------------
+        // Update
+        // -----------------------------------------------------
+
+        return await _bookingRepository.UpdateStatusAsync(
+            booking.PNR,
+            status);
+    }
+
+    // =========================================================
+    // UPDATE BOOKING STATUS
+    // =========================================================
+
+
+    // =========================================================
+    // CANCEL BOOKING
+    //
+    // Workflow:
+    //
+    // Booking
+    //    ↓
+    // Cancel Tickets
+    //    ↓
+    // Release Seats
+    //    ↓
+    // TotalAmount = 0
+    //    ↓
+    // Booking = Cancelled
+    //    ↓
+    // Refund Payment
+    // =========================================================
+
+    public async Task<bool> CancelAsync(
+        string pnr,
+        string reason)
+    {
+        // =====================================================
+        // VALIDATE PNR
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            throw new ArgumentException(
+                "PNR is required.",
+                nameof(pnr));
+        }
+
+        pnr = pnr.Trim();
+
+        // =====================================================
+        // GET BOOKING
+        // =====================================================
+
+        var booking =
+            await _bookingRepository.GetByPNRAsync(pnr);
+
+        if (booking == null)
+        {
+            return false;
+        }
+
+        // =====================================================
+        // CHECK STATUS
+        // =====================================================
+
+        if (string.Equals(
+                booking.BookingStatus,
+                BookingStatus.Cancelled,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(
+                booking.BookingStatus,
+                BookingStatus.Completed,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "A completed booking cannot be cancelled.");
+        }
+
+        // =====================================================
+        // CANCEL REASON
+        // =====================================================
+
+        var cancelReason =
+            string.IsNullOrWhiteSpace(reason)
+                ? "Booking cancelled by administrator."
+                : reason.Trim();
+
+        // =====================================================
+        // STEP 1
+        // CANCEL ALL TICKETS
+        // =====================================================
+
+        await _ticketRepository
+            .CancelAllByPNRAsync(
+                pnr,
+                cancelReason);
+
+        // =====================================================
+        // STEP 2
+        // UPDATE BOOKING
+        // =====================================================
+
+        var bookingUpdate = new Booking
+        {
+            PNR = booking.PNR,
+
+            UserId = booking.UserId,
+
+            TripId = booking.TripId,
+
+            TotalPassengers =
+                booking.TotalPassengers,
+
+            TotalAmount = 0,
+
+            BookingStatus = BookingStatus.Cancelled,
+
+            BookingDate =
+                booking.BookingDate
+        };
+
+        var updated =
+            await _bookingRepository.UpdateAsync(
+                bookingUpdate);
+
+        if (!updated)
+        {
+            throw new InvalidOperationException(
+                $"Unable to cancel booking '{pnr}'.");
+        }
+
+        // =====================================================
+        // STEP 3
+        // RESET TOTAL AMOUNT
+        // =====================================================
+
+        await _bookingRepository.UpdateTotalAmountAsync(
+            pnr,
+            0);
+
+        // =====================================================
+        // STEP 4
+        // REFUND PAYMENT
+        // =====================================================
+
+        try
+        {
+            await _paymentService
+                .RefundAsync(pnr);
+        }
+        catch (KeyNotFoundException)
+        {
+            // Booking không có Payment.
+            // Không cần refund.
+        }
+
+        return true;
+    }
+
+    // =========================================================
+    // DELETE
+    // =========================================================
+
+    public async Task<bool> DeleteAsync(string pnr)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            throw new ArgumentException(
+                "PNR is required.",
+                nameof(pnr));
+        }
+
+        pnr = pnr.Trim();
+
+        var booking =
+            await _bookingRepository.GetByPNRAsync(pnr);
+
+        if (booking == null)
+        {
+            return false;
+        }
+
+        // -----------------------------------------------------
+        // Do not delete active booking
+        // -----------------------------------------------------
+
+        if (!string.Equals(
+                booking.BookingStatus,
+                BookingStatus.Cancelled,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Booking '{pnr}' must be cancelled before it can be deleted.");
+        }
+
+        return await _bookingRepository.DeleteAsync(pnr);
+    }
+
+    // =========================================================
+    // GENERATE PNR
+    // =========================================================
+
+    // =========================================================
+    // VALIDATE CREATE REQUEST
+    // =========================================================
+
     private static void ValidateCreateRequest(
         BookingCreateRequest dto)
     {
@@ -201,6 +486,10 @@ public class BookingService : IBookingService
         }
     }
 
+    // =========================================================
+    // VALIDATE STATUS TRANSITION
+    // =========================================================
+
     private static void ValidateStatusTransition(
         string currentStatus,
         string newStatus)
@@ -211,7 +500,8 @@ public class BookingService : IBookingService
                 "Booking status is required.");
         }
 
-        if (currentStatus.Equals(
+        if (string.Equals(
+                currentStatus,
                 BookingStatus.Cancelled,
                 StringComparison.OrdinalIgnoreCase))
         {
@@ -219,7 +509,8 @@ public class BookingService : IBookingService
                 "A cancelled booking cannot be updated.");
         }
 
-        if (currentStatus.Equals(
+        if (string.Equals(
+                currentStatus,
                 BookingStatus.Completed,
                 StringComparison.OrdinalIgnoreCase))
         {
@@ -237,7 +528,7 @@ public class BookingService : IBookingService
         };
 
         if (!allowedStatuses.Contains(
-                newStatus,
+                newStatus.Trim(),
                 StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
@@ -245,50 +536,31 @@ public class BookingService : IBookingService
         }
     }
 
-    private static BookingResponse MapToResponse(
-        Booking booking)
+    // =========================================================
+    // NORMALIZE STATUS
+    // =========================================================
+
+    private static string GetNormalizedStatus(
+        string status)
     {
-        return new BookingResponse
+        var allowedStatuses = new[]
         {
-            PNR = booking.PNR,
-            UserId = booking.UserId,
-            TripId = booking.TripId,
-            TotalPassengers = booking.TotalPassengers,
-            TotalAmount = booking.TotalAmount,
-            BookingStatus = booking.BookingStatus,
-            BookingDate = booking.BookingDate
+            BookingStatus.Pending,
+            BookingStatus.Confirmed,
+            BookingStatus.Cancelled,
+            BookingStatus.Completed,
+            BookingStatus.Expired
         };
+
+        return allowedStatuses.First(
+            x => x.Equals(
+                status.Trim(),
+                StringComparison.OrdinalIgnoreCase));
     }
 
-    public async Task<bool> UpdateAsync(string pnr, BookingUpdateRequest dto)
-    {
-        ArgumentNullException.ThrowIfNull(dto);
+    // =========================================================
+    // MAP RESPONSE
+    // =========================================================
 
-        if (string.IsNullOrWhiteSpace(pnr))
-        {
-            throw new ArgumentException("PNR is required.", nameof(pnr));
-        }
-
-        var booking = await _bookingRepository.GetByPNRAsync(pnr.Trim());
-        if (booking == null)
-        {
-            return false;
-        }
-
-        // Validate quy trình chuyển đổi trạng thái (state transition)
-        ValidateStatusTransition(booking.BookingStatus, dto.BookingStatus);
-
-        // Tùy chọn: Nếu DTO có chứa các trường khác ngoài Status (vd: TotalPassengers),
-        // bạn có thể gán lại cho model ở đây trước khi gọi Repository update.
-        booking.BookingStatus = dto.BookingStatus;
-
-        return await _bookingRepository.UpdateStatusAsync(booking.PNR, dto.BookingStatus);
-    }
-
-    public async Task<bool> DeleteAsync(string pnr)
-    {
-        // Trong hệ thống đặt vé, Delete đồng nghĩa với việc Hủy đơn (Cancel)
-        // Gọi lại logic CancelAsync có sẵn để đảm bảo tuân thủ đúng business rules
-        return await CancelAsync(pnr);
-    }
+    
 }

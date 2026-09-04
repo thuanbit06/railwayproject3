@@ -12,18 +12,21 @@ public class CancellationService : ICancellationService
     private readonly ITicketService _ticketService;
     private readonly ITripService _tripService;
     private readonly ITicketRepository _ticketRepository;
+    private readonly IRefundRepository _refundRepository;
 
     public CancellationService(
         ICancellationRuleRepository ruleRepository,
         ITicketService ticketService,
         ITripService tripService,
-        ITicketRepository ticketRepository
+        ITicketRepository ticketRepository,
+        IRefundRepository refundRepository
         )
     {
         _ruleRepository = ruleRepository;
         _ticketService = ticketService;
         _tripService = tripService;
         _ticketRepository = ticketRepository;
+        _refundRepository = refundRepository;
     }
 
     // =========================================================
@@ -132,10 +135,14 @@ public class CancellationService : ICancellationService
     // GET APPLICABLE RULE
     // =========================================================
 
-    public async Task<CancellationRuleResponse?> GetApplicableRuleAsync(
-        int ticketId)
-    {// 1. Lấy ticket
-        var ticket = await _ticketService.GetByIdAsync(ticketId);
+    public async Task<CancellationRuleResponse?> GetApplicableRuleAsync(int ticketId)
+    {
+        if (ticketId <= 0)
+            return null;
+
+        // 1. Lấy ticket kèm Booking + Trip
+        var ticket = await _ticketRepository
+            .GetByIdWithBookingAndTripAsync(ticketId);
 
         if (ticket == null)
             return null;
@@ -149,29 +156,24 @@ public class CancellationService : ICancellationService
             return null;
         }
 
-        // 3. Lấy Trip
-        var trip = ticket.TripId.HasValue? await _tripService.GetByIdAsync(ticket.TripId.Value) : null;
+        // 3. Kiểm tra Booking + Trip
+        if (ticket.Booking == null)
+            return null;
 
+        var trip = ticket.Booking.Trip;
         if (trip == null)
             return null;
 
-        var now = DateTime.UtcNow;
-
-        var hoursBeforeDeparture = (trip.JourneyDate.Date + trip.DepartureTime - now).TotalHours;
-
+        // 4. Tính số giờ còn lại trước giờ khởi hành
+        var departureDateTime = trip.JourneyDate.Date.Add(trip.DepartureTime);
+        var hoursBeforeDeparture = (departureDateTime - DateTime.UtcNow).TotalHours;
 
         if (hoursBeforeDeparture < 0)
             return null;
 
-        var rules = await _ruleRepository.GetAllAsync();
-
-        var applicableRule = rules
-            .Where(r =>
-                r.HoursBeforeDeparture <=
-                hoursBeforeDeparture)
-            .OrderByDescending(
-                r => r.HoursBeforeDeparture)
-            .FirstOrDefault();
+        // 5. Lấy rule phù hợp nhất (dùng method repository đã có)
+        var applicableRule = await _ruleRepository
+            .GetApplicableRuleAsync((int)hoursBeforeDeparture);
 
         return applicableRule == null
             ? null
@@ -494,6 +496,90 @@ public class CancellationService : ICancellationService
 
             MinFee =
                 r.MinFee
+        };
+    }
+
+    // =========================================================
+    // CREATE REFUND FROM CALCULATION
+    // =========================================================
+
+    public async Task<RefundResponse> CreateFromCalculationAsync(
+        int ticketId)
+    {
+        // 1. Check duplicate
+        var existing =
+            await _refundRepository.GetByTicketIdAsync(
+                ticketId);
+
+        if (existing != null)
+        {
+            throw new InvalidOperationException(
+                $"Refund already exists for Ticket {ticketId}.");
+        }
+
+        // 2. Calculate cancellation
+        var calculation =
+            await CalculateCancellationAsync(
+                ticketId);
+
+        if (calculation == null)
+        {
+            throw new InvalidOperationException(
+                "Unable to calculate cancellation.");
+        }
+
+        // 3. Check cancellation allowed
+        if (!calculation.CanCancel)
+        {
+            throw new InvalidOperationException(
+                calculation.RejectReason
+                ?? "Cancellation is not allowed.");
+        }
+
+        // 4. Create refund PENDING
+        var refund = new Refund
+        {
+            TicketId =
+                ticketId,
+
+            CancellationRuleId =
+                calculation.CancellationRuleId,
+
+            AmountPaid =
+                calculation.Fare,
+
+            CancellationFee =
+                calculation.CancellationFee,
+
+            RefundAmount =
+                calculation.RefundAmount,
+
+            RefundStatus =
+                "PENDING",
+
+            RefundDate =
+                DateTime.UtcNow
+        };
+
+        var created =
+            await _refundRepository.CreateAsync(
+                refund);
+
+        return new RefundResponse
+        {
+            Id = created.Id,
+            TicketId = created.TicketId,
+            CancellationRuleId =
+                created.CancellationRuleId,
+            AmountPaid = created.AmountPaid,
+            CancellationFee =
+                created.CancellationFee,
+            RefundAmount =
+                created.RefundAmount,
+            RefundStatus =
+                created.RefundStatus,
+            RefundDate =
+                created.RefundDate
         };
     }
 }

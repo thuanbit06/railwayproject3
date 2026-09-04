@@ -26,4 +26,6 @@ public interface ICancellationService
 
     Task<bool> IsCancellationAllowedAsync(
         int ticketId);
+
+    Task<RefundResponse> CreateFromCalculationAsync(int ticketId);
 }

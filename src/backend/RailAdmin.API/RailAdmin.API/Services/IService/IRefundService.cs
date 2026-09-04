@@ -23,5 +23,5 @@ public interface IRefundService
     // Admin
     Task<bool> DeleteAsync(int id);
 
-    Task<RefundResponse> CreateFromCalculationAsync(int ticketId);
+    Task<bool> UpdateAsync(int id, RefundUpdateRequest dto);
 }

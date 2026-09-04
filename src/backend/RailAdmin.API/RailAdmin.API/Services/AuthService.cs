@@ -2,6 +2,8 @@
 using Microsoft.IdentityModel.Tokens;
 using RailAdmin.API.Data;
 using RailAdmin.API.DTOs;
+using RailAdmin.API.DTOs.Request.Otp;
+using RailAdmin.API.DTOs.Request.User;
 using RailAdmin.API.DTOs.Response;
 using RailAdmin.API.Models;
 using RailAdmin.API.Services.IService;
@@ -22,98 +24,133 @@ public class AuthService : IAuthService
         _config = config;
     }
 
-    // =========================
-    // REGISTER
-    // =========================
-    public async Task<AuthResponse?> RegisterAsync(RegisterRequest req)
+    // ✅ Method 1: GetUserByIdAsync
+    public async Task<UserResponse?> GetUserByIdAsync(int id)
     {
-        if (await _db.Users.AnyAsync(u => u.Email == req.Email))
-            return null;
+        var user = await _db.Users.FindAsync(id);
+        if (user == null) return null;
+        return MapToDto(user);
+    }
 
-        var user = new User
-        {
-            Name = req.Name,
-            Email = req.Email,
+    // ✅ Method 2: VerifyOtpAsync
+    public async Task<AuthResponse> VerifyOtpAsync(VerifyOtpRequest req)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLower());
 
-            PasswordHash =
-                BCrypt.Net.BCrypt.HashPassword(req.Password),
+        if (user == null)
+            return new AuthResponse { Success = false, Message = "Người dùng không tồn tại." };
 
-            // User đăng ký luôn là User
-            Role = "User"
-        };
+        if (string.IsNullOrEmpty(user.OTP) || user.OTP != req.Otp || user.OTPExpiry < DateTime.UtcNow)
+            return new AuthResponse { Success = false, Message = "Mã OTP không hợp lệ hoặc đã hết hạn." };
 
-        _db.Users.Add(user);
-
+        user.OTP = null;
+        user.OTPExpiry = null;
         await _db.SaveChangesAsync();
 
         return new AuthResponse
         {
             Success = true,
-            Message = "Register successful",
+            Message = "Xác minh thành công.",
             Token = GenerateJwtToken(user),
             Role = user.Role,
+            RequireOtp = false,
             User = MapToDto(user)
         };
     }
 
-    // =========================
-    // LOGIN
-    // =========================
-    public async Task<AuthResponse?> LoginAsync(LoginRequest req)
+    public async Task<AuthResponse?> RegisterAsync(RegisterRequest req)
     {
-        var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == req.Email);
+        if (await _db.Users.AnyAsync(u => u.Email == req.Email.ToLower()))
+            return new AuthResponse { Success = false, Message = "Email đã được sử dụng." };
 
-        if (user == null)
-            return null;
+        var user = new User
+        {
+            Name = req.Name,
+            Email = req.Email.ToLower(),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
+            Role = "User"
+        };
 
-        var passwordValid =
-            BCrypt.Net.BCrypt.Verify(
-                req.Password,
-                user.PasswordHash);
-
-        if (!passwordValid)
-            return null;
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
 
         return new AuthResponse
         {
             Success = true,
-            Message = "Login successful",
+            Message = "Đăng ký thành công.",
             Token = GenerateJwtToken(user),
+            Role = user.Role,
+            RequireOtp = false,
+            User = MapToDto(user)
+        };
+    }
+
+    public async Task<AuthResponse?> LoginAsync(LoginRequest req)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLower());
+
+        if (user == null)
+            return new AuthResponse { Success = false, Message = "Email hoặc mật khẩu không đúng." };
+
+        var passwordValid = BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash);
+        if (!passwordValid)
+            return new AuthResponse { Success = false, Message = "Email hoặc mật khẩu không đúng." };
+
+        var otp = Random.Shared.Next(100000, 999999).ToString();
+        user.OTP = otp;
+        user.OTPExpiry = DateTime.UtcNow.AddMinutes(5);
+        await _db.SaveChangesAsync();
+
+        return new AuthResponse
+        {
+            Success = true,
+            Message = "Mã OTP đã được gửi đến email của bạn.",
+            RequireOtp = true,
+            Role = user.Role
+        };
+    }
+
+    public async Task<AuthResponse?> CreateUserAsync(UserCreateRequest req, string adminEmail)
+    {
+        var admin = await _db.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
+        if (admin == null || admin.Role != "Admin")
+            return new AuthResponse { Success = false, Message = "Chỉ Admin mới được tạo user." };
+
+        if (await _db.Users.AnyAsync(u => u.Email == req.Email.ToLower()))
+            return new AuthResponse { Success = false, Message = "Email đã tồn tại." };
+
+        var defaultPassword = $"Rail@202{Random.Shared.Next(1000, 9999)}";
+
+        var user = new User
+        {
+            Name = req.Name,
+            Email = req.Email.ToLower(),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
+            Role = req.Role
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        return new AuthResponse
+        {
+            Success = true,
+            Message = $"Tạo user thành công. Mật khẩu mặc định: {defaultPassword}",
             Role = user.Role,
             User = MapToDto(user)
         };
     }
 
-    // =========================
-    // JWT
-    // =========================
     private string GenerateJwtToken(User user)
     {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(
-                _config["Jwt:Key"]!));
-
-        var credentials = new SigningCredentials(
-            key,
-            SecurityAlgorithms.HmacSha256);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
-            new Claim(
-                ClaimTypes.NameIdentifier,
-                user.Id.ToString()
-            ),
-
-            new Claim(
-                ClaimTypes.Email,
-                user.Email
-            ),
-
-            new Claim(
-                ClaimTypes.Role,
-                user.Role
-            )
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role)
         };
 
         var token = new JwtSecurityToken(
@@ -124,21 +161,14 @@ public class AuthService : IAuthService
             signingCredentials: credentials
         );
 
-        return new JwtSecurityTokenHandler()
-            .WriteToken(token);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    // =========================
-    // USER DTO
-    // =========================
-    private UserResponse MapToDto(User user)
+    private UserResponse MapToDto(User user) => new()
     {
-        return new UserResponse
-        {
-            Id = user.Id,
-            Name = user.Name,
-            Email = user.Email,
-            Role = user.Role
-        };
-    }
+        Id = user.Id,
+        Name = user.Name,
+        Email = user.Email,
+        Role = user.Role
+    };
 }

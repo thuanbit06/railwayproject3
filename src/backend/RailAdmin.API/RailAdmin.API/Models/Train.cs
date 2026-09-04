@@ -29,5 +29,5 @@ public class Train
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
-    public virtual ICollection<TrainCoach>? Coaches { get; set; }
+    public virtual ICollection<TrainCoach> Coaches { get; set; } = new List<TrainCoach>();
 }

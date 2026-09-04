@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RailAdmin.API.DTOs.Request.Ticket;
 using RailAdmin.API.Services.IService;
+using System.Security.Claims;
 
 namespace RailAdmin.API.Controllers;
 
@@ -13,119 +14,375 @@ public class TicketsController : ControllerBase
 {
     private readonly ITicketService _ticketService;
 
-    public TicketsController(ITicketService ticketService)
+    public TicketsController(
+        ITicketService ticketService)
     {
         _ticketService = ticketService;
     }
 
-    // GET: api/tickets
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
+    // =========================================================
+    // GET MY TICKETS
+    // GET /api/tickets/my-tickets
+    // =========================================================
+
+    [HttpGet("my-tickets")]
+    public async Task<IActionResult> GetMyTickets()
     {
-        var tickets = await _ticketService.GetAllAsync();
+        var userId = GetCurrentUserId();
+
+        if (userId == null)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "Không xác định được UserId từ token."
+            });
+        }
+
+        var tickets =
+            await _ticketService
+                .GetByUserIdAsync(userId.Value);
 
         return Ok(tickets);
     }
 
-    // GET: api/tickets/{id}
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    // =========================================================
+    // GET BY PNR
+    // GET /api/tickets/pnr/{pnr}
+    // =========================================================
+
+    [HttpGet("pnr/{pnr}")]
+    public async Task<IActionResult> GetByPNR(
+        string pnr)
     {
-        var ticket = await _ticketService.GetByIdAsync(id);
+        if (string.IsNullOrWhiteSpace(pnr))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "PNR {pnr} không được để trống."
+            });
+        }
+
+        var tickets =
+            await _ticketService
+                .GetByPNRAsync(pnr);
+
+        if (!tickets.Any())
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy vé."
+            });
+        }
+
+        return Ok(tickets);
+    }
+
+    // =========================================================
+    // GET BY ID
+    // GET /api/tickets/{id}
+    // =========================================================
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(
+        int id)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Ticket ID không hợp lệ."
+            });
+        }
+
+        var ticket =
+            await _ticketService
+                .GetByIdAsync(id);
 
         if (ticket == null)
         {
             return NotFound(new
             {
-                message = $"Ticket {id} not found."
+                success = false,
+                message = "Không tìm thấy vé."
             });
         }
 
         return Ok(ticket);
     }
 
-    // GET: api/tickets/by-pnr/{pnr}
-    [HttpGet("by-pnr/{pnr}")]
-    public async Task<IActionResult> GetByPNR(string pnr)
+    // =========================================================
+    // CREATE TICKET
+    // POST /api/tickets
+    // =========================================================
+
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] TicketCreateRequest request)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var result =
+                await _ticketService
+                    .CreateAsync(request);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // UPDATE
+    // PUT /api/tickets/{id}
+    // =========================================================
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] TicketUpdateRequest request)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var result =
+                await _ticketService
+                    .UpdateAsync(
+                        id,
+                        request);
+
+            if (!result)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Không tìm thấy vé."
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Cập nhật vé thành công."
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // CANCEL BOOKING BY PNR
+    // PUT /api/tickets/{pnr}/cancel
+    // =========================================================
+
+    [HttpPut("{pnr}/cancel")]
+    public async Task<IActionResult> Cancel(
+        string pnr,
+        [FromBody] CancelTicketRequestDto? request)
     {
         if (string.IsNullOrWhiteSpace(pnr))
         {
             return BadRequest(new
             {
-                message = "PNR is required."
+                success = false,
+                message = "PNR không được để trống."
             });
         }
 
-        var tickets = await _ticketService.GetByPNRAsync(pnr);
-
-        if (!tickets.Any())
+        try
         {
-            return NotFound(new
+            var reason =
+                string.IsNullOrWhiteSpace(request?.Reason)
+                    ? "Cancelled by user."
+                    : request.Reason.Trim();
+
+            var result =
+                await _ticketService
+                    .CancelAsync(
+                        pnr,
+                        reason);
+
+            if (!result)
             {
-                message = $"No tickets found for PNR {pnr}."
+                return BadRequest(new
+                {
+                    success = false,
+                    message =
+                        "Không thể hủy vé. Booking không tồn tại, đã bị hủy hoặc không còn vé hợp lệ."
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Hủy booking thành công.",
+                pnr = pnr.Trim()
             });
         }
-
-        return Ok(tickets);
-    }
-
-    // POST: api/tickets
-    [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] TicketCreateRequest dto)
-    {
-        if (!ModelState.IsValid)
+        catch (ArgumentException ex)
         {
-            return BadRequest(ModelState);
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
         }
-
-        var createdTicket = await _ticketService.CreateAsync(dto);
-
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = createdTicket.Id },
-            createdTicket
-        );
-    }
-
-    // PUT: api/tickets/{id}
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(
-        int id,
-        [FromBody] TicketUpdateRequest dto)
-    {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var updated = await _ticketService.UpdateAsync(id, dto);
-
-        if (!updated)
+        catch (KeyNotFoundException ex)
         {
             return NotFound(new
             {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // CHECK CANCELLABLE
+    // GET /api/tickets/{id}/cancellable
+    // =========================================================
+
+    [HttpGet("{id:int}/cancellable")]
+    public async Task<IActionResult> IsCancellable(
+        int id)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
                 message = $"Ticket {id} not found."
             });
         }
 
-        return NoContent();
+        var result =
+            await _ticketService
+                .IsCancellableAsync(id);
+
+        return Ok(new
+        {
+            cancellable = result
+        });
     }
 
-    // DELETE: api/tickets/{id}
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var deleted = await _ticketService.DeleteAsync(id);
+    // =========================================================
+    // CANCELLATION CONTEXT
+    // GET /api/tickets/{id}/cancellation-context
+    // =========================================================
 
-        if (!deleted)
+    [HttpGet("{id:int}/cancellation-context")]
+    public async Task<IActionResult>
+        GetCancellationContext(int id)
+    {
+        if (id <= 0)
         {
-            return NotFound(new
+            return BadRequest(new
             {
-                message = $"Ticket {id} not found."
+                success = false,
+                message = "Ticket ID không hợp lệ."
             });
         }
 
-        return NoContent();
+        var result =
+            await _ticketService
+                .GetCancellationContextAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy vé."
+            });
+        }
+
+        return Ok(result);
+    }
+
+    // =========================================================
+    // CURRENT USER ID
+    // =========================================================
+
+    private int? GetCurrentUserId()
+    {
+        var claim =
+            User.FindFirst(
+                ClaimTypes.NameIdentifier);
+
+        if (claim == null)
+        {
+            return null;
+        }
+
+        if (!int.TryParse(
+                claim.Value,
+                out var userId))
+        {
+            return null;
+        }
+
+        return userId > 0
+            ? userId
+            : null;
     }
 }

@@ -33,11 +33,15 @@ import Support from "./pages/user/Support";
 
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import DashboardHome from "./pages/admin/DashboardHome";
 import Analytics from "./pages/admin/Analytics";
 import TrainManagement from "./pages/admin/TrainManagement";
 import StationManagement from "./pages/admin/StationManagement";
 import ReservationsManagement from "./pages/admin/ReservationsManagement";
 import TicketsManagement from "./pages/admin/TicketsManagement";
+import Help from "./pages/admin/Help";
+import Seats from "./pages/admin/Seats";
+import CoachManagement from "./pages/admin/CoachManagement";
 
 function App() {
   return (
@@ -77,16 +81,35 @@ function App() {
               <Route element={<ProtectedRoute adminOnly />}>
                 <Route path="/admin" element={<AdminDashboard />}>
                   <Route index element={<Navigate to="dashboard" replace />} />
-                  <Route path="dashboard" element={<Analytics />} />
+
+                  <Route path="dashboard" element={<DashboardHome />} />
+
                   <Route path="trains" element={<TrainManagement />} />
+
                   <Route path="stations" element={<StationManagement />} />
+
                   <Route
                     path="reservations"
                     element={<ReservationsManagement />}
                   />
+
                   <Route path="tickets" element={<TicketsManagement />} />
+
                   <Route path="analytics" element={<Analytics />} />
+                  <Route path="seat" element={<Seats />} />
+                  <Route
+                    path="/admin/trains/:trainId/coaches"
+                    element={<CoachManagement />}
+                  />
+
+                  <Route
+                    path="/admin/coaches/:coachId/seats"
+                    element={<Seats />}
+                  />
+
                   <Route path="settings" element={<Settings />} />
+
+                  <Route path="help" element={<Help />} />
                 </Route>
               </Route>
             </Routes>

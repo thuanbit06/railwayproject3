@@ -1,40 +1,43 @@
 import api from "./api";
 
 // =====================================================
-// ADMIN - Lấy tất cả vé
-// GET /api/admin/tickets
+// ADMIN
 // =====================================================
+
 export const getTickets = () => api.get("/admin/tickets");
 
-// =====================================================
-// USER - Lấy vé của user hiện tại
-// GET /api/tickets/my-tickets
-// =====================================================
-export const getMyTickets = () => api.get("/tickets/my-tickets");
-
-// =====================================================
-// Lấy chi tiết vé theo PNR
-// GET /api/tickets/pnr/{pnr}
-// =====================================================
-export const getTicketByPNR = (pnr) => api.get(`/tickets/pnr/${pnr}`);
-
-// =====================================================
-// ADMIN - Xóa vé
-// DELETE /api/admin/tickets/{id}
-// =====================================================
 export const deleteTicket = (id) => api.delete(`/admin/tickets/${id}`);
 
 // =====================================================
-// Hủy vé
+// USER - MY TICKETS
+// =====================================================
+
+export const getMyTickets = () => api.get("/tickets/my-tickets");
+
+// =====================================================
+// GET TICKET BY ID
+// =====================================================
+
+export const getTicketById = (id) => api.get(`/tickets/${id}`);
+
+// =====================================================
+// GET TICKETS BY PNR
+// =====================================================
+
+export const getTicketByPNR = (pnr) => api.get(`/tickets/pnr/${pnr}`);
+
+// =====================================================
+// PNR STATUS
+// =====================================================
+
+export const checkPnrStatus = (pnr) => api.get(`/tickets/pnr/${pnr}`);
+
+// =====================================================
+// CANCEL BOOKING BY PNR
 // PUT /api/tickets/{pnr}/cancel
 // =====================================================
-export const cancelTicket = (pnr, reason = "Cancelled by admin") =>
+
+export const cancelTicket = (pnr, reason = "Ticket cancelled by user.") =>
   api.put(`/tickets/${pnr}/cancel`, {
     reason,
   });
-
-// =====================================================
-// Kiểm tra trạng thái PNR
-// GET /api/tickets/pnr/{pnr}
-// =====================================================
-export const checkPnrStatus = (pnr) => api.get(`/tickets/pnr/${pnr}`);

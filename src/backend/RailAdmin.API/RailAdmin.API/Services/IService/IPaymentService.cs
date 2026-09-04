@@ -11,4 +11,5 @@ public interface IPaymentService
     Task<PaymentResponse> CreateAsync(PaymentCreateRequest dto);
     Task<bool> UpdateAsync(int id, PaymentUpdateRequest dto);
     Task<bool> DeleteAsync(int id);
+    Task<bool> RefundAsync(string pnr);
 }

@@ -1,9 +1,21 @@
-import api from "../services/api";
+import api from "./api";
 
 const analyticsService = {
   getAnalytics: async (range = "Month") => {
-    const response = await api.get(`/analytics?range=${range}`);
-    return response.data;
+    try {
+      const response = await api.get(
+        `/admin/analytics?range=${encodeURIComponent(range)}`,
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Failed to fetch analytics:",
+        error.response?.data || error.message,
+      );
+
+      throw error;
+    }
   },
 };
 
