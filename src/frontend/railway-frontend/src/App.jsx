@@ -9,6 +9,7 @@ import { BookingProvider } from "./context/BookingContext";
 import { UserProvider } from "./context/UserContext"; // 👈 1. Import UserProvider
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import AiChat from "./components/AiChat";
 
 // Auth
 import Login from "./pages/auth/Login";
@@ -114,6 +115,7 @@ function App() {
               </Route>
             </Routes>
           </Router>
+          <AiChat />
         </BookingProvider>
       </AuthProvider>
     </UserProvider> // 👈 3. Đóng UserProvider
