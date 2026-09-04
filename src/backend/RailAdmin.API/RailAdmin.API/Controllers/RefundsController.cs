@@ -281,7 +281,7 @@ public class RefundsController : ControllerBase
     // =========================================================
 
     [HttpPost("{refundId:int}/failed")]
-    public async Task<IActionResult> MarkAsFailed(int refundId)
+    public async Task<IActionResult> MarkAsFailed(int refundId, string reason)
     {
         if (refundId <= 0)
         {
@@ -295,7 +295,7 @@ public class RefundsController : ControllerBase
         {
             var updated =
                 await _refundService
-                    .MarkAsFailedAsync(refundId);
+                    .MarkAsFailedAsync(refundId, reason);
 
             if (!updated)
             {

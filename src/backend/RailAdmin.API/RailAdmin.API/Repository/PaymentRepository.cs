@@ -30,7 +30,7 @@ public class PaymentRepository : IPaymentRepository
     // GET BY ID
     // =========================================================
 
-    public async Task<Payment?> GetByIdAsync(int id)
+    public async Task<Payment?> GetByIdAsync(int? id)
     {
         return await _db.Payments
             .AsNoTracking()
@@ -127,5 +127,14 @@ public class PaymentRepository : IPaymentRepository
                 p.Status == "PAID")
             .OrderByDescending(p => p.PaidAt)
             .FirstOrDefaultAsync();
+    }
+
+    public async Task<bool> ExistsByPNRAsync(string pnr)
+    {
+        if (string.IsNullOrWhiteSpace(pnr))
+            return false;
+
+        return await _db.Payments
+            .AnyAsync(b => b.PNR == pnr.Trim());
     }
 }

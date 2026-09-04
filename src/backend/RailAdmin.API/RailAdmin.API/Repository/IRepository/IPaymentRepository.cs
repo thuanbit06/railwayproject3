@@ -6,7 +6,7 @@ public interface IPaymentRepository
 {
     Task<IEnumerable<Payment>> GetAllAsync();
 
-    Task<Payment?> GetByIdAsync(int id);
+    Task<Payment?> GetByIdAsync(int? id);
 
     Task<Payment?> GetByPNRAsync(string pnr);
 
