@@ -6,5 +6,7 @@ namespace RailAdmin.API.DTOs.Request.Refund
     {
         [Required, MaxLength(20)]
         public string RefundStatus { get; set; } = string.Empty; // PENDING / PROCESSED / FAILED
+
+        public string? FailureReason { get; set; }
     }
 }

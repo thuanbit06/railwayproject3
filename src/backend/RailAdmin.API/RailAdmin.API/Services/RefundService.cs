@@ -17,16 +17,12 @@ public class RefundService : IRefundService
 
     public RefundService(
         IRefundRepository refundRepository,
-          ICancellationService cancellationService,
-        ITicketService ticketService,
         ISeatService seatService,
         IPaymentGateway paymentGateway,
         IPaymentRepository paymentRepository
     )
     {
         _refundRepository = refundRepository;
-        _cancellationService = cancellationService;
-        _ticketService = ticketService;
         _seatService = seatService;
         _paymentGateway = paymentGateway;
         _paymentRepository = paymentRepository;
@@ -167,51 +163,7 @@ public class RefundService : IRefundService
 
         return MapToResponse(created);
     }
-
-
-    // =========================================================
-    // PROCESS REFUND
-    // =========================================================
-
-    public async Task<RefundResponse> ProcessAsync(int refundId)
-    {
-        if (refundId <= 0)
-        {
-            throw new ArgumentException(
-                "Refund ID must be greater than 0.",
-                nameof(refundId));
-        }
-
-        // 4. Create refund PENDING
-        var refund = new Refund
-        {
-            TicketId =
-                ticketId,
-
-            CancellationRuleId =
-                calculation.CancellationRuleId,
-
-            AmountPaid =
-                calculation.Fare,
-
-            CancellationFee =
-                calculation.CancellationFee,
-
-            RefundAmount =
-                calculation.RefundAmount,
-
-            RefundStatus =
-                "PENDING",
-
-            RefundDate =
-                DateTime.UtcNow
-        };
-
-        var created =
-            await _refundRepository.CreateAsync(refund);
-
-        return MapToResponse(created);
-    }
+   
 
 
     // =========================================================
@@ -563,8 +515,6 @@ public async Task<bool> UpdateAsync(
         }
 
         return await _refundRepository
-            .UpdateStatusAsync(
-                id,
-                dto.RefundStatus.Trim());
+            .UpdateStatusAsync(id, dto.RefundStatus.Trim(), dto.FailureReason);
     }
 }

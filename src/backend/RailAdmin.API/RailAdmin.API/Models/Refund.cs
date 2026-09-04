@@ -17,7 +17,7 @@ public class Refund
     public int TicketId { get; set; }
 
     [Required]
-    public int PaymentId { get; set; }
+    public int? PaymentId { get; set; }
 
     public int? CancellationRuleId { get; set; }
 
@@ -36,7 +36,7 @@ public class Refund
 
     [Required]
     [MaxLength(100)]
-    public string IdempotencyKey { get; set; } = string.Empty;
+    public string IdempotencyKey { get; set; }
 
     [MaxLength(200)]
     public string? RefundTransactionId { get; set; }
@@ -55,4 +55,7 @@ public class Refund
 
     [ForeignKey(nameof(CancellationRuleId))]
     public virtual CancellationRule? CancellationRule { get; set; }
+
+    [ForeignKey(nameof(PaymentId))]
+    public virtual Payment? Payment { get; set; }
 }
