@@ -41,36 +41,18 @@ public class PaymentRepository : IPaymentRepository
     // GET BY PNR
     // =========================================================
 
-    public async Task<Payment?> GetByPNRAsync(string pnr)
+    public async Task<Payment?> GetByPNRAsync(
+      string pnr)
     {
-        if (string.IsNullOrWhiteSpace(pnr))
+       if (string.IsNullOrWhiteSpace(pnr))
             return null;
-
-        pnr = pnr.Trim();
-
+            
         return await _db.Payments
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.PNR == pnr);
+            .Where(p => p.PNR == pnr.Trim())
+            .OrderByDescending(p => p.PaidAt)
+            .FirstOrDefaultAsync();
     }
-
-    // =========================================================
-    // CHECK PAYMENT EXISTS
-    // =========================================================
-
-    public async Task<bool> ExistsByPNRAsync(string pnr)
-    {
-        if (string.IsNullOrWhiteSpace(pnr))
-            return false;
-
-        pnr = pnr.Trim();
-
-        return await _db.Payments
-            .AnyAsync(p => p.PNR == pnr);
-    }
-
-    // =========================================================
-    // CREATE
-    // =========================================================
 
     public async Task<Payment> CreateAsync(Payment payment)
     {
@@ -133,5 +115,17 @@ public class PaymentRepository : IPaymentRepository
         await _db.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<Payment?> GetSuccessfulPaymentByPNRAsync(
+        string pnr)
+    {
+        return await _db.Payments
+            .AsNoTracking()
+            .Where(p =>
+                p.PNR == pnr &&
+                p.Status == "PAID")
+            .OrderByDescending(p => p.PaidAt)
+            .FirstOrDefaultAsync();
     }
 }

@@ -14,14 +14,11 @@ public interface IRefundService
         int ticketId);
 
     // Business
-    Task<RefundResponse> CreateAsync(
-        RefundCreateRequest dto);
+    Task<RefundResponse> CreateAsync(RefundCreateRequest dto);
 
-    Task<RefundResponse> ProcessAsync(
-        int refundId);
+    Task<RefundResponse> ProcessAsync(int refundId, CancellationToken cancellationToken = default);
 
-    Task<bool> MarkAsFailedAsync(
-        int refundId);
+    Task<bool> MarkAsFailedAsync(int refundId, string reason);
 
     // Admin
     Task<bool> DeleteAsync(int id);

@@ -152,6 +152,15 @@ public class AppDbContext : DbContext
             .HasForeignKey(x => x.CancellationRuleId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<Refund>()
+            .HasIndex(r => r.IdempotencyKey)
+            .IsUnique();
+
+        modelBuilder.Entity<Refund>()
+            .HasIndex(r => r.RefundTransactionId)
+            .IsUnique()
+            .HasFilter("[RefundTransactionId] IS NOT NULL");
+
         // ===== WaitList =====
         modelBuilder.Entity<WaitList>()
             .HasOne(x => x.Trip)
