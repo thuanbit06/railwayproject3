@@ -14,10 +14,11 @@ public interface IRefundRepository
 
     Task<Refund> CreateAsync(Refund refund);
 
-    Task<bool> UpdateStatusAsync(
-        int id,
-        string status);
+    Task<bool> UpdateStatusAsync(int id, string status, string reason);
 
     Task<bool> DeleteAsync(int id);
     Task<bool> UpdateAsync(Refund refund);
+
+    Task<Refund?> GetByIdempotencyKeyAsync(string idempotencyKey);
+
 }

@@ -161,6 +161,7 @@ builder.Services.AddScoped<IWaitListService, WaitListService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICancellationService, CancellationService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
+builder.Services.AddScoped<IPaymentGateway, PaymentGateway>();
 
 
 var app = builder.Build();

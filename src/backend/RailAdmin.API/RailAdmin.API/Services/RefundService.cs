@@ -2,6 +2,7 @@
 using RailAdmin.API.DTOs.Request.Refund;
 using RailAdmin.API.DTOs.Response;
 using RailAdmin.API.Models;
+using RailAdmin.API.Repository;
 using RailAdmin.API.Repository.IRepository;
 using RailAdmin.API.Services.IService;
 
@@ -13,21 +14,24 @@ public class RefundService : IRefundService
     private readonly ICancellationService _cancellationService;
     private readonly ITicketService _ticketService;
     private readonly ISeatService _seatService;
+    private readonly IPaymentGateway _paymentGateway;
+    private readonly IPaymentRepository _paymentRepository;
 
     public RefundService(
         IRefundRepository refundRepository,
           ICancellationService cancellationService,
         ITicketService ticketService,
-        ISeatService seatService
+        ISeatService seatService,
+        IPaymentGateway paymentGateway,
+        IPaymentRepository paymentRepository
     )
     {
         _refundRepository = refundRepository;
-        _cancellationService =
-           cancellationService;
-        _ticketService =
-            ticketService;
-        _seatService =
-            seatService;
+        _cancellationService = cancellationService;
+        _ticketService = ticketService;
+        _seatService = seatService;
+        _paymentGateway = paymentGateway;
+        _paymentRepository = paymentRepository;
     }
     // =========================================================
     // HISTORY
@@ -152,9 +156,11 @@ public class RefundService : IRefundService
 
             CancellationFee = dto.CancellationFee,
 
-            RefundAmount = refundAmount,
+            RefundAmount = Math.Max((dto.AmountPaid ?? 0m) - (dto.CancellationFee ?? 0m), 0m),
 
             RefundStatus = "PENDING",
+
+            IdempotencyKey = $"REFUND-TICKET-{dto.TicketId}",
 
             RefundDate = DateTime.UtcNow
         };
@@ -239,99 +245,228 @@ public class RefundService : IRefundService
     // PROCESS REFUND
     // =========================================================
 
-    public async Task<RefundResponse?>
-       ProcessAsync(int refundId)
+    public async Task<RefundResponse?> ProcessAsync(int refundId, CancellationToken cancellationToken = default)
     {
         var refund =
             await _refundRepository.GetByIdAsync(
                 refundId);
 
         if (refund == null)
-            return null;
+            throw new KeyNotFoundException(
+                $"Refund {refundId} not found.");
 
-        if (refund.RefundStatus != "PENDING")
+        // ------------------------------------------
+        // 1. Already processed
+        // ------------------------------------------
+
+        if (refund.RefundStatus == "PROCESSED")
+        {
+            return MapToResponse(refund);
+        }
+
+        // ------------------------------------------
+        // 2. Validate amount
+        // ------------------------------------------
+
+        if (!refund.RefundAmount.HasValue ||
+            refund.RefundAmount <= 0)
         {
             throw new InvalidOperationException(
-                $"Refund {refundId} is already " +
-                $"'{refund.RefundStatus}'.");
+                "Refund amount must be greater than zero.");
         }
+
+        // ------------------------------------------
+        // 3. Load original payment
+        // ------------------------------------------
+
+        var payment =
+            await _paymentRepository.GetByIdAsync(
+                refund.PaymentId);
+
+        if (payment == null)
+        {
+            await _refundRepository.UpdateStatusAsync(
+                refundId,
+                "FAILED",
+                "Original payment not found.");
+
+            return await GetByIdAsync(refundId);
+        }
+
+        // ------------------------------------------
+        // 4. Validate original payment
+        // ------------------------------------------
+
+        if (payment.Status != "PAID")
+        {
+            await _refundRepository.UpdateStatusAsync(
+                refundId,
+                "FAILED",
+                "Original payment is not PAID.");
+
+            return await GetByIdAsync(refundId);
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            payment.TransactionId))
+        {
+            await _refundRepository.UpdateStatusAsync(
+                refundId,
+                "FAILED",
+                "Original payment transaction ID is missing.");
+
+            return await GetByIdAsync(refundId);
+        }
+
+        // ------------------------------------------
+        // 5. Mark PROCESSING
+        // ------------------------------------------
+
+        refund.RefundStatus = "PROCESSING";
+
+        await _refundRepository.UpdateAsync(
+            refund);
+
+        // ------------------------------------------
+        // 6. Call payment gateway
+        // ------------------------------------------
+
+        var gatewayRequest =
+            new RefundGatewayRequest
+            {
+                OriginalTransactionId =
+                    payment.TransactionId,
+
+                Amount =
+                    refund.RefundAmount.Value,
+
+                IdempotencyKey =
+                    refund.IdempotencyKey
+            };
+
+        RefundGatewayResult result;
 
         try
         {
-            // -------------------------------------------------
-            // TODO:
-            //
-            // Call PaymentService / Payment Gateway here.
-            //
-            // Example:
-            //
-            // await _paymentService.RefundAsync(
-            //     refund.TicketId,
-            //     refund.RefundAmount);
-            // -------------------------------------------------
-
-            bool paymentSuccess = true;
-
-            if (!paymentSuccess)
-            {
-                await MarkAsFailedAsync(
-                    refundId);
-
-                return await GetByIdAsync(
-                    refundId);
-            }
-
-            // Payment succeeded
-            refund.RefundStatus =
-                "PROCESSED";
-
-            refund.RefundDate =
-                DateTime.UtcNow;
-
-            await _refundRepository.UpdateAsync(
-                refund);
-
-            // Ticket → CANCELLED
-            await _ticketService.CancelAsync(
-                refund.TicketId,
-                "Customer requested cancellation.");
-
-            // Release Seat
-            var ticket =
-                await _ticketService.GetByIdAsync(
-                    refund.TicketId);
-
-            if (ticket?.SeatId != null)
-            {
-                await _seatService.ReleaseAsync(
-                    ticket.SeatId.Value);
-            }
-
-            return MapToResponse(refund);
+            result =
+                await _paymentGateway.RefundAsync(
+                    gatewayRequest,
+                    cancellationToken);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            await _refundRepository
-                .UpdateStatusAsync(
-                    refundId,
-                    RefundStatus.Failed);
+            // Không tự động FAILED.
+            //
+            // Vì cancellation của application
+            // không chứng minh gateway chưa xử lý.
+
+            await _refundRepository.UpdateStatusAsync(
+                refundId,
+                "UNKNOWN",
+                "Refund request was cancelled.");
+
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await _refundRepository.UpdateStatusAsync(
+                refundId,
+                "UNKNOWN",
+                ex.Message);
 
             throw;
         }
 
-        var updated =
-            await _refundRepository
-                .GetByIdAsync(refundId);
+        // ------------------------------------------
+        // 7. Gateway UNKNOWN
+        // ------------------------------------------
 
-        return MapToResponse(updated!);
+        if (result.IsUnknown)
+        {
+            refund.RefundStatus = "UNKNOWN";
+            refund.FailureReason =
+                result.ErrorMessage;
+
+            refund.RetryCount++;
+
+            await _refundRepository.UpdateAsync(
+                refund);
+
+            return MapToResponse(refund);
+        }
+
+        // ------------------------------------------
+        // 8. Gateway FAILED
+        // ------------------------------------------
+
+        if (result.IsFailure)
+        {
+            refund.RefundStatus = "FAILED";
+            refund.FailureReason =
+                result.ErrorMessage;
+
+            refund.RetryCount++;
+
+            await _refundRepository.UpdateAsync(
+                refund);
+
+            return MapToResponse(refund);
+        }
+
+        // ------------------------------------------
+        // 9. Gateway SUCCESS
+        // ------------------------------------------
+
+        if (result.IsSuccess)
+        {
+            refund.RefundStatus =
+                "PROCESSED";
+
+            refund.RefundTransactionId =
+                result.RefundTransactionId;
+
+            refund.ProcessedAt =
+                DateTime.UtcNow;
+
+            refund.RefundDate =
+                DateTime.UtcNow;
+
+            refund.FailureReason = null;
+
+            await _refundRepository.UpdateAsync(
+                refund);
+
+            // --------------------------------------
+            // IMPORTANT
+            // Ticket + Seat sẽ được xử lý tiếp
+            // trong application transaction.
+            // --------------------------------------
+
+            return MapToResponse(refund);
+        }
+
+        // ------------------------------------------
+        // 10. Safety fallback
+        // ------------------------------------------
+
+        refund.RefundStatus = "UNKNOWN";
+
+        refund.FailureReason =
+            "Unknown gateway response.";
+
+        refund.RetryCount++;
+
+        await _refundRepository.UpdateAsync(
+            refund);
+
+        return MapToResponse(refund);
     }
 
     // =========================================================
     // MARK REFUND FAILED
     // =========================================================
 
-    public async Task<bool>
-        MarkAsFailedAsync(int refundId)
+    public async Task<bool> MarkAsFailedAsync(int refundId, string reason)
     {
         if (refundId <= 0)
         {
@@ -346,7 +481,7 @@ public class RefundService : IRefundService
 
         if (refund == null)
         {
-            return false;
+            throw new KeyNotFoundException($"Refund {refundId} not found.");
         }
 
         if (refund.RefundStatus ==
@@ -358,11 +493,14 @@ public class RefundService : IRefundService
 
         refund.RefundStatus =
            "FAILED";
+        refund.FailureReason = reason;
 
-        refund.RefundDate =
-         DateTime.UtcNow;
+        refund.RetryCount++;
 
-        return await _refundRepository.UpdateAsync(refund);
+        refund.RefundDate = DateTime.UtcNow;
+
+        await _refundRepository.UpdateAsync(refund);
+        return MapToResponse(refund) != null;
     }
 
     // =========================================================

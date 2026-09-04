@@ -10,4 +10,6 @@ public interface IPaymentRepository
     Task<Payment> CreateAsync(Payment payment);
     Task<bool> UpdateAsync(Payment payment);
     Task<bool> DeleteAsync(int id);
+    Task<Payment?> GetSuccessfulPaymentByPNRAsync(  
+        string pnr);
 }

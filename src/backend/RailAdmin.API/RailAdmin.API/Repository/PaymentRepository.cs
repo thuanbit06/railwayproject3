@@ -16,8 +16,15 @@ public class PaymentRepository : IPaymentRepository
     public async Task<Payment?> GetByIdAsync(int id)
         => await _db.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
 
-    public async Task<Payment?> GetByPNRAsync(string pnr)
-        => await _db.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.PNR == pnr);
+    public async Task<Payment?> GetByPNRAsync(
+      string pnr)
+    {
+        return await _db.Payments
+            .AsNoTracking()
+            .Where(p => p.PNR == pnr)
+            .OrderByDescending(p => p.PaidAt)
+            .FirstOrDefaultAsync();
+    }
 
     public async Task<Payment> CreateAsync(Payment payment)
     {
@@ -43,5 +50,17 @@ public class PaymentRepository : IPaymentRepository
         _db.Payments.Remove(item);
         await _db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<Payment?> GetSuccessfulPaymentByPNRAsync(
+        string pnr)
+    {
+        return await _db.Payments
+            .AsNoTracking()
+            .Where(p =>
+                p.PNR == pnr &&
+                p.Status == "PAID")
+            .OrderByDescending(p => p.PaidAt)
+            .FirstOrDefaultAsync();
     }
 }

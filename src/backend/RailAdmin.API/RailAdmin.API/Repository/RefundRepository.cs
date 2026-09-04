@@ -10,7 +10,7 @@ public class RefundRepository : IRefundRepository
 {
     private readonly AppDbContext _db;
 
-    public RefundRepository(AppDbContext db)
+    public RefundRepository(AppDbContext db)                
     {
         _db = db;
     }
@@ -58,7 +58,8 @@ public class RefundRepository : IRefundRepository
 
     public async Task<bool> UpdateStatusAsync(
         int id,
-        string status)
+        string status,
+        string reason) // added parameter to match the interface
     {
         var existing =
             await _db.Refunds
@@ -70,6 +71,10 @@ public class RefundRepository : IRefundRepository
         }
 
         existing.RefundStatus = status;
+
+        // If you need to persist the reason, set a property here, e.g.:
+        // existing.Reason = reason;
+        // (only do this if the Refund model actually has such a property)
 
         await _db.SaveChangesAsync();
 
@@ -105,5 +110,13 @@ public class RefundRepository : IRefundRepository
         //    existing.CancelledAt = DateTime.UtcNow;
         //await _db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<Refund?> GetByIdempotencyKeyAsync(
+        string idempotencyKey)
+    {
+        return await _db.Refunds
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.IdempotencyKey == idempotencyKey);
     }
 }
