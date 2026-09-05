@@ -7,7 +7,7 @@ import {
 import { AuthProvider } from "./context/AuthContext";
 import { BookingProvider } from "./context/BookingContext";
 import { UserProvider } from "./context/UserContext"; // 👈 1. Import UserProvider
-
+import Trip from "./pages/user/Trip";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Auth
@@ -75,6 +75,7 @@ function App() {
                 <Route path="/ticket/:pnr" element={<TicketDetails />} />
                 <Route path="/cancel/:pnr" element={<CancelTicket />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/trips" element={<Trip />} />
               </Route>
 
               {/* Admin Protected Routes */}
