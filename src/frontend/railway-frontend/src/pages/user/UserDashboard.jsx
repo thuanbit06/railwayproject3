@@ -211,7 +211,7 @@ const UserDashboard = () => {
             </p>
             <div className="mt-5 flex items-center gap-3">
               <button
-                onClick={() => nav("/book")}
+                onClick={() => nav("/book-ticket")}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-md shadow-md transition">
                 Book Now
               </button>
@@ -410,7 +410,7 @@ const UserDashboard = () => {
                 Fastest: 12h 30m â€¢ Daily Trains: 15
               </p>
               <button
-                onClick={() => nav("/book")}
+                onClick={() => nav("/book-ticket")}
                 className="mt-3 bg-white text-slate-900 font-bold text-xs px-4 py-2 rounded-lg w-max hover:bg-slate-100 transition">
                 Book Now â‚¹1,450
               </button>
@@ -525,7 +525,7 @@ const UserDashboard = () => {
                   Fare from â‚¹1,200
                 </span>
                 <button
-                  onClick={() => nav("/book")}
+                  onClick={() => nav("/book-ticket")}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition">
                   Book Seat
                 </button>
@@ -577,7 +577,7 @@ const UserDashboard = () => {
                   Fare from â‚¹1,650
                 </span>
                 <button
-                  onClick={() => nav("/book")}
+                  onClick={() => nav("/book-ticket")}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition">
                   Book Seat
                 </button>
@@ -754,7 +754,7 @@ const UserDashboard = () => {
               </li>
               <li>
                 <button
-                  onClick={() => nav("/book")}
+                  onClick={() => nav("/book-ticket")}
                   className="hover:text-white">
                   Group Booking
                 </button>
